@@ -186,10 +186,28 @@ func (c *connection) readPump() {
 				}
 			}
 			if val, ok := m.Data["action"]; ok {
-				if val == "new" {
+				switch val {
+				case "new":
+
 					model := m.Data["model"].(map[string]interface{})
 					modelname := m.Data["model-name"].(string)
 					AddModel(modelname, model)
+				case "edit":
+					model := m.Data["model"].(map[string]interface{})
+					modelname := m.Data["model-name"].(string)
+					SaveModel(modelname, model)
+
+				case "delete":
+					model := m.Data["model"].(map[string]interface{})
+					modelname := m.Data["model-name"].(string)
+					DeleteModel(modelname, model)
+					//Start deployment
+					patch := &Patch{Element: "#alert", Payload: "Do you want  to undo delete of" +model["id"].(string) + "? Not yet..."}
+					message, err := json.Marshal(patch)
+					if err != nil {
+						log.Println("Error marshaling patch")
+					}
+					c.send <- message
 				}
 			}
 
@@ -245,7 +263,7 @@ func (c *connection) writePump() {
 	}
 }
 
-// serverWs handles webocket requests from the peer.
+// ServerWs handles webocket requests from the peer.
 func ServeWs(w http.ResponseWriter, r *http.Request) {
 	go h.run() //Starting hub, this is different than in example
 	if r.Method != "GET" {

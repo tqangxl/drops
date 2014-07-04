@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"container/list"
 	"fmt"
-	"github.com/cyfdecyf/tst"
 	"log"
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/cyfdecyf/tst"
 )
 
 type View struct {
@@ -20,6 +21,13 @@ type View struct {
 	Model      map[string]interface{}
 	Return     string //key which view returns and will be used in model for templating
 
+}
+
+//Struct which holds facts for fields that are going to be rendered
+type ComponentRule struct {
+	Ignore bool
+	View   *View
+	Label  string
 }
 
 //Renders view recurively
@@ -67,7 +75,7 @@ func (v *View) Render() bytes.Buffer {
 func RenderTemplate(templateName string, data interface{}) bytes.Buffer {
 	var buffer bytes.Buffer
 	// t, _ := template.ParseFiles(templateName)
-	// fmt.Printf("Templates: %+v", Templates)
+	fmt.Printf("Rendering template: %+v\n", templateName)
 	if t, ok := Templates[templateName]; ok {
 		t.Execute(&buffer, data)
 	}
@@ -99,6 +107,21 @@ func Add(dom *DOM, view *View) *DOM {
 	return dom
 }
 
+//Adds view to existing view
+//It-s used when we don't have DOM existent
+func AddToView(view *View, newView *View) *View {
+	if newView != nil {
+		parent := view.Children
+
+		if parent == nil {
+			parent = list.New()
+		}
+		parent.PushBack(newView)
+		view.Children = parent
+	}
+	return view
+}
+
 type DOM struct {
 	*View
 	IdTree *tst.Trie
@@ -124,42 +147,105 @@ func New(typ reflect.Type, rules map[string]string, injectInto string, title str
 	view := &View{Template: "new.tpl", InjectInto: injectInto, Model: map[string]interface{}{
 		"Title": title,
 	}}
+	var fieldset *View
+	fieldset = NewFieldset()
 
-	fields := make([]*map[string]string, 0)
+	fields := make([]*map[string]interface{}, 0)
+	fmt.Printf("NNumber of fields %+v\n", typ.NumField())
 	for i := 0; i < typ.NumField(); i++ {
 		fieldName := typ.Field(i).Name
 		fmt.Printf("Field name %v\n", fieldName)
 
-		fieldMap := make(map[string]string) //map passed to field generator
+		fieldMap := make(map[string]interface{}) //map passed to field generator
 		fieldMap["Label"] = fieldName
 		fieldMap["Name"] = fieldName
 		// fmt.Printf("Field map %v\n", fieldMap)
 		fields = append(fields, &fieldMap)
+		fieldRule := &ComponentRule{}
+		var ruleTag string
 		if rules != nil {
-			if ruleTag, ok := rules[fieldName]; ok {
+			//Process rules
+
+			if tag, ok := rules[fieldName]; ok {
 				fmt.Printf("Rule tag %v\n", ruleTag)
+				ruleTag = tag
 
-				ignoreRule := GetRule(ruleTag, "ignore")
-				fmt.Printf("Ignore rule %v\n", ignoreRule)
-				if ignoreRule != "" {
-					ignore, err := strconv.ParseBool(ignoreRule)
-					if err != nil {
-						log.Println("Ignore rule not properly set")
-					}
-					//If not ignored input will be generated
-					if ignore {
-						fields = fields[:len(fields)-1]
-
-					}
-				}
 			}
 		}
+		//Execute rules
+		fieldRule = execIgnoreRule(ruleTag, fieldRule)
+		// fmt.Printf("Rule at the moment %v\n", fieldRule)
+		fieldRule = execForeignRule(ruleTag, fieldMap, fieldRule)
+		// fmt.Printf("Rule at the moment %v\n", fieldRule)
+		fieldset = AddToView(fieldset, fieldRule.View)
 	}
+
 	view.Model["Fields"] = fields
+	view = AddToView(view, fieldset)
 	fmt.Printf("Fields generated %v\n", fields)
 
 	return view
 
+}
+
+//Executes ignore rule and returns if filed should be ignored
+func execIgnoreRule(ruleTag string, fieldRule *ComponentRule) *ComponentRule {
+	ignoreRule := GetRule(ruleTag, "ignore")
+	// fmt.Printf("Ignore rule %v\n", ignoreRule)
+	var ignore bool
+	var err error
+	if ignoreRule != "" {
+		ignore, err = strconv.ParseBool(ignoreRule)
+		if err != nil {
+			log.Println("Ignore rule not properly set")
+		}
+		fmt.Printf("Ignore parsed %v\n", ignore)
+		fieldRule.Ignore = ignore
+	}
+
+	return fieldRule
+}
+
+//executes foreign rule, to create a special field that creates
+//reference to foreign key table and populates
+// select element with options
+//model - model name for which  I must retreive object store
+func execForeignRule(ruleTag string, fieldMap map[string]interface{}, fieldRule *ComponentRule) *ComponentRule {
+	model := GetRule(ruleTag, "foreign")
+	// var field *View
+	// fmt.Printf("Ignoring on creating view %v\n", fieldRule.Ignore)
+	if fieldRule.Ignore {
+		return fieldRule
+	}
+	if model != "" {
+		//Changing label to be the name of model if not explicitely set
+		if fieldRule.Label == "" {
+			fieldMap["Label"] = model
+		}
+		fmt.Printf("Selecting for model %v\n", model)
+		allModel := GetAll(model)
+		for _, v := range allModel {
+			fmt.Printf("Model value %v\n", v)
+			if _, ok := v["Label"]; !ok {
+				v["Label"] = v["Name"] //example usage, if label not set
+			}
+			//Add selected attribute if it matches value of the field
+
+			if foreignValue, ok := fieldMap["Value"]; ok {
+				if foreignValue == v["Id"] {
+					v["Selected"] = "selected"
+				} else {
+					v["Selected"] = ""
+				}
+			}
+		}
+		fieldMap["Options"] = allModel
+
+		fieldRule.View = NewSelect(fieldMap)
+	} else {
+		fieldRule.View = NewInputText(fieldMap)
+	}
+	return fieldRule
 }
 
 func ViewModel(value interface{}, rules map[string]string, injectInto string, title string, template string) *View {
@@ -212,10 +298,13 @@ func ViewModel(value interface{}, rules map[string]string, injectInto string, ti
 
 }
 
+//Magical method that creates form for editing based on provided value
 func Edit(value interface{}, rules map[string]string, injectInto string, title string) *View {
 	view := &View{Template: "edit.tpl", InjectInto: injectInto, Model: map[string]interface{}{
 		"Title": title,
 	}}
+
+	fieldset := NewFieldset()
 
 	typ := reflect.TypeOf(value).Elem()
 	val := reflect.Indirect(reflect.ValueOf(value))
@@ -233,27 +322,26 @@ func Edit(value interface{}, rules map[string]string, injectInto string, title s
 		fieldMap["Value"] = val.Field(i).Interface()
 		// fmt.Printf("Field map %v\n", fieldMap)
 		fields = append(fields, &fieldMap)
+		fieldRule := &ComponentRule{}
+		var ruleTag string
 		if rules != nil {
-			if ruleTag, ok := rules[fieldName]; ok {
+			//Process rules
+
+			if tag, ok := rules[fieldName]; ok {
 				fmt.Printf("Rule tag %v\n", ruleTag)
+				ruleTag = tag
 
-				ignoreRule := GetRule(ruleTag, "ignore")
-				fmt.Printf("Ignore rule %v\n", ignoreRule)
-				if ignoreRule != "" {
-					ignore, err := strconv.ParseBool(ignoreRule)
-					if err != nil {
-						log.Println("Ignore rule not properly set")
-					}
-					//If not ignored input will be generated
-					if ignore {
-						fields = fields[:len(fields)-1]
-
-					}
-				}
 			}
 		}
+		//Execute rules
+		fieldRule = execIgnoreRule(ruleTag, fieldRule)
+		// fmt.Printf("Rule at the moment %v\n", fieldRule)
+		fieldRule = execForeignRule(ruleTag, fieldMap, fieldRule)
+		// fmt.Printf("Rule at the moment %v\n", fieldRule)
+		fieldset = AddToView(fieldset, fieldRule.View)
 	}
 	view.Model["Fields"] = fields
+	view = AddToView(view, fieldset)
 	view.Model["Id"] = val.FieldByName("Id").Interface()
 	fmt.Printf("Fields generated %v\n", fields)
 
