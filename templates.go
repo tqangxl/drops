@@ -40,8 +40,7 @@ const viewTplString = `<h1>{{.Title}} {{.Id}}</h1>
 			<span>{{.Value}}</span>
 		</div>
 	</div>
-	{{end}}
-</form>`
+	{{end}}`
 
 //Select tag
 const selectTplString = `

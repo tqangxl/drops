@@ -13,13 +13,14 @@ import (
 )
 
 type View struct {
-	Children   *list.List
-	Template   string
-	Content    string
-	InjectInto string //ID to inject this view into
-	Provides   string //ID that this view provides, into which we can inject other views
-	Model      map[string]interface{}
-	Return     string //key which view returns and will be used in model for templating
+	Children    *list.List
+	Template    string
+	Content     string
+	InjectInto  string //ID to inject this view into
+	Provides    string //ID that this view provides, into which we can inject other views
+	ModelStruct interface{}
+	Model       map[string]interface{}
+	Return      string //key which view returns and will be used in model for templating
 
 }
 
@@ -64,8 +65,31 @@ func (v *View) Render() bytes.Buffer {
 		v.Content = buffer.String()
 		v.Model["Content"] = v.Content
 
-		// fmt.Printf("Content: %v\n", v.Model)
-		buffer = RenderTemplate(v.Template, v.Model)
+		fmt.Printf("Model struct: %v\n", v.ModelStruct)
+		if v.ModelStruct != nil {
+			buffer = RenderTemplate(v.Template, v.ModelStruct)
+			//Find which ids this view provides and generate another template onto which content should be injected
+			if v.Provides != "" {
+				templateBeforeProcess := buffer.String()
+				idIndex := strings.Index(templateBeforeProcess, v.Provides[1:])
+				if idIndex > -1 {
+					//if id exist find out for index of character '>'
+					tagEndIndex := strings.IndexRune(templateBeforeProcess[idIndex:], '>')
+					if tagEndIndex > -1 {
+						//If i find tag end index
+						fmt.Printf("idIndex: %v  tagEndIndex: %v \n", idIndex, tagEndIndex)
+						var newBuffer bytes.Buffer
+						newBuffer.WriteString(templateBeforeProcess[:idIndex+tagEndIndex+1])
+						newBuffer.WriteString(v.Content)
+						newBuffer.WriteString(templateBeforeProcess[idIndex+tagEndIndex+2:])
+						buffer = newBuffer
+					}
+				}
+			}
+		} else {
+			buffer = RenderTemplate(v.Template, v.Model)
+
+		}
 	} else {
 		buffer.WriteString(v.Template)
 	}
