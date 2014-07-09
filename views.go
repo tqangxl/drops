@@ -63,6 +63,7 @@ func (v *View) Render() bytes.Buffer {
 			v.Model = make(map[string]interface{})
 		}
 		v.Content = buffer.String()
+		fmt.Printf("Model for template: %s \n%v\n", v.Template, v.Model)
 		v.Model["Content"] = v.Content
 
 		fmt.Printf("Model struct: %v\n", v.ModelStruct)
@@ -115,7 +116,8 @@ func Add(dom *DOM, view *View) *DOM {
 	if view.Provides != "" {
 		dom.IdTree.Put(view.Provides, view)
 	}
-	if view.InjectInto != "" && view.Return == "" {
+	//if view.InjectInto != "" && view.Return == "" {
+	if view.InjectInto != "" {
 		if node := dom.IdTree.Get(view.InjectInto); node != nil {
 			// fmt.Printf("Node: %+v\n", node)
 			parentView := node.(*View)

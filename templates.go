@@ -81,4 +81,6 @@ func init() {
 	templ = template.Must(template.New("fieldset.tpl").Parse("<fieldset>{{.Content}}</fieldset>"))
 	Templates[templ.Name()] = templ
 
+	NewEventDispatcher()
+
 }

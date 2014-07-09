@@ -62,6 +62,16 @@ func Diff(view1 *View, view2 *View) []Patch {
 			if children1[i] != nil && children2[i] != nil {
 				view1 = children1[i].(*View)
 				view2 = children2[i].(*View)
+				//Check for modelStruct equality
+				modelStruct1 := view1.ModelStruct
+				modelStruct2 := view2.ModelStruct
+				modelStructEq := reflect.DeepEqual(modelStruct1, modelStruct2)
+				if modelStructEq {
+					//modelstructs are equal go level deeper
+					//They are the same, try deeper level
+					childPatches := Diff(view1, view2)
+					patches = append(patches, childPatches...)
+				}
 				map1 := make(map[string]interface{})
 				//Copy maps and ignore content key
 				for k, v := range view1.Model {
@@ -75,6 +85,7 @@ func Diff(view1 *View, view2 *View) []Patch {
 						map2[k] = v
 					}
 				}
+
 				modelEq := reflect.DeepEqual(map1, map2)
 				// if children1[i] != children2[i] {
 				if !modelEq {
@@ -90,7 +101,11 @@ func Diff(view1 *View, view2 *View) []Patch {
 		for e := differences.Front(); e != nil; e = e.Next() {
 			view := e.Value.(*View)
 			buff := view.Render()
-			patch := &Patch{Element: view.InjectInto, Payload: buff.String()}
+			patchElement := view.InjectInto
+			if view.Return != "" {
+				patchElement = view.Provides
+			}
+			patch := &Patch{Element: patchElement, Payload: buff.String()}
 			patches = append(patches, *patch)
 		}
 

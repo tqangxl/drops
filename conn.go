@@ -7,11 +7,12 @@ package drops
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 const (
@@ -173,6 +174,7 @@ func (c *connection) readPump() {
 		case "event":
 			fmt.Printf("Event received: %+v\n", m.Data)
 			// example event. Using this before I Implement eventDispatcher
+
 			if val, ok := m.Data["className"]; ok {
 				if strings.Contains(val.(string), "deploy-btn") {
 					//Start deployment
@@ -186,6 +188,11 @@ func (c *connection) readPump() {
 				}
 			}
 			if val, ok := m.Data["action"]; ok {
+				if handler, ok := eventDispatcher[val.(string)]; ok {
+					message := handler.Handle(m.Data)
+					c.send <- message
+					continue
+				}
 				switch val {
 				case "new":
 
@@ -202,7 +209,7 @@ func (c *connection) readPump() {
 					modelname := m.Data["model-name"].(string)
 					DeleteModel(modelname, model)
 					//Start deployment
-					patch := &Patch{Element: "#alert", Payload: "Do you want  to undo delete of" +model["id"].(string) + "? Not yet..."}
+					patch := &Patch{Element: "#alert", Payload: "Do you want  to undo delete of" + model["id"].(string) + "? Not yet..."}
 					message, err := json.Marshal(patch)
 					if err != nil {
 						log.Println("Error marshaling patch")
