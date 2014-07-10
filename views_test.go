@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/AduroIdea/drops"
+	"github.com/mkasner/drops"
 )
 
 type ProjectModel struct {
