@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/mkasner/drops"
+	"github.com/mkasner/drops/element"
 )
 
 type ProjectModel struct {
@@ -28,9 +28,72 @@ type NodeModel struct {
 	AppPath  string `sql:"type:varchar(255);" json:"app_path"`
 }
 
-func TestHandlersSuite(t *testing.T) {
-	testView(t)
+func TestSuite(t *testing.T) {
+	// testView(t)
+	testAdd(t)
+	testAddToView(t)
+}
 
+//Testing Add function
+//Test if length of children is equal expected
+func testAdd(t *testing.T) {
+	fmt.Println("Testing Add(DOM, view)")
+	dom1 := &element.DOM{View: element.View{Children: make([]*element.View, 0), Template: "views/base.html", Provides: "html", Model: &element.Model{MAP: make(map[string]interface{})}}, Id: "1"}
+	dom1.IdTree = &element.ViewTrie{}
+	dom1.IdTree.Put(dom1.View.Provides, &dom1.View)
+	head := &element.Head{View: element.View{Template: "views/head.html", Provides: "head", Return: "Head", Model: &element.Model{MAP: make(map[string]interface{})}}}
+	body := &element.Body{View: element.View{Template: "views/body.html", Provides: "body", Return: "Body",
+		Model: &element.Model{MAP: map[string]interface{}{
+			"Content": "Body1",
+		}}}}
+	dom1 = Add(dom1, &head.View)
+	dom1 = Add(dom1, &body.View)
+	expected := 2
+	if len(dom1.View.Children) != expected {
+		t.Errorf("Children not added for first level: %v != %v\n", len(dom1.Children), expected)
+		t.Fail()
+	}
+
+	//Test adding to deeper level, expected children should be the same
+	header := &Header{View: &element.View{Template: "views/header.html", Provides: "#header", InjectInto: "body", Model: &element.Model{MAP: make(map[string]interface{})}}}
+	dom1 = Add(dom1, header.View)
+	if len(dom1.View.Children) != expected {
+		t.Errorf("Children should be the same as first expected: %v != %v\n", len(dom1.Children), expected)
+		t.Fail()
+	}
+
+	expected = 1
+	if len(body.View.Children) != expected {
+		t.Errorf("Children not added for body element: %v != %v\n", len(body.View.Children), expected)
+		t.Fail()
+	}
+
+}
+
+func testAddToView(t *testing.T) {
+	fmt.Println("Testing AddToView(View, newVIew)")
+	dom1 := &element.DOM{View: element.View{Children: make([]*element.View, 0), Template: "views/base.html", Provides: "html", Model: &element.Model{MAP: make(map[string]interface{})}}, Id: "1"}
+	dom1.IdTree = &element.ViewTrie{}
+	dom1.IdTree.Put(dom1.View.Provides, &dom1.View)
+	head := &element.Head{View: element.View{Template: "views/head.html", Provides: "head", Return: "Head", Model: &element.Model{MAP: make(map[string]interface{})}}}
+	body := &element.Body{View: element.View{Template: "views/body.html", Provides: "body", Return: "Body",
+		Model: &element.Model{MAP: map[string]interface{}{
+			"Content": "Body1",
+		}}}}
+	dom1 = Add(dom1, &head.View)
+	dom1 = Add(dom1, &body.View)
+	expected := 2
+	if len(dom1.View.Children) != expected {
+		t.Errorf("Children not added: %v != %v\n", len(dom1.Children), expected)
+		t.Fail()
+	}
+	header := &Header{View: &element.View{Template: "views/header.html", Provides: "#header", InjectInto: "body", Model: &element.Model{MAP: make(map[string]interface{})}}}
+	AddToView(&body.View, header.View)
+	expected = 1
+	if len(body.View.Children) != expected {
+		t.Errorf("Children not added for body element: %v != %v\n", len(body.View.Children), expected)
+		t.Fail()
+	}
 }
 
 //Creating view ad writing to tempfile
@@ -39,17 +102,17 @@ func testView(t *testing.T) {
 	fmt.Println("Testing views")
 	var project ProjectModel
 	typ := reflect.TypeOf(project)
-	drops.NewStore()
+	NewStore()
 	var node NodeModel
-	drops.AddStore(node, &NodeDAO{})
+	AddStore(node, &NodeDAO{})
 	//Rules for generating fields
 	rules := map[string]string{
 		"Id":     `ignore:"true"`,
 		"Origin": `ignore:"false" foreign:"NodeModel"`,
 	}
 
-	view := drops.New(typ, rules, "", "")
-	r := view.Render()
+	view := New(typ, rules, "", "")
+	r := Render(view)
 	// open output file
 	fo, err := os.Create("/tmp/component.html")
 	if err != nil {
@@ -70,14 +133,16 @@ func testView(t *testing.T) {
 type NodeDAO struct{}
 
 func (n *NodeDAO) GetAll() []map[string]interface{} {
-	result := make([]drops.Model, 3)
-	result[0] = drops.Model{"Id": 1, "Name": "localhost"}
-	result[1] = drops.Model{"Id": 1, "Name": "sweden"}
-	result[2] = drops.Model{"Id": 1, "Name": "litva"}
+	result := make([]map[string]interface{}, 3)
+	result[0] = map[string]interface{}{"Id": 1, "Name": "localhost"}
+	result[1] = map[string]interface{}{"Id": 1, "Name": "sweden"}
+	result[2] = map[string]interface{}{"Id": 1, "Name": "litva"}
 
 	return result
 }
 func (n *NodeDAO) DeleteModel(id int64) {
 }
 func (n *NodeDAO) SaveModel(data map[string]interface{}) {
+}
+func (n *NodeDAO) UpdateModel(data map[string]interface{}) {
 }

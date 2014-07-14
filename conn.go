@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/mkasner/drops/element"
+	"github.com/mkasner/drops/router"
 )
 
 const (
@@ -75,9 +77,9 @@ func (c *connection) readPump() {
 			// for _, route := range randomKeys {
 			// 	dom := Route(route)
 			// 	e := dom.View.Children.Back() //Get body el
-			// 	view := e.Value.(*View)
+			// 	view := e.Value.(*element.View)
 			// 	e = view.Children.Back()
-			// 	view = e.Value.(*View)
+			// 	view = e.Value.(*element.View)
 			// 	buffer := view.Render()
 			// 	var response string
 			// 	response = buffer.String()
@@ -98,9 +100,9 @@ func (c *connection) readPump() {
 			// This works but uses hardcoded element
 			// dom := Route(m.Data[1:])
 			// e := dom.View.Children.Back() //Get body el
-			// view := e.Value.(*View)
+			// view := e.Value.(*element.View)
 			// e = view.Children.Back()
-			// view = e.Value.(*View)
+			// view = e.Value.(*element.View)
 			// buffer := view.Render()
 			// var response string
 			// response = buffer.String()
@@ -136,14 +138,14 @@ func (c *connection) readPump() {
 			//End testing block
 
 			//Currently implementing new router
-			var params Params
+			var params router.Params
 			if _, ok := m.Data["params"]; ok { //if params exist
 				paramsMap := m.Data["params"].(map[string]interface{})
 				if paramsMap != nil && len(paramsMap) > 0 {
-					params = make(Params, len(paramsMap))
+					params = make(router.Params, len(paramsMap))
 					i := 0
 					for k, v := range paramsMap {
-						param := &Param{k, v}
+						param := &router.Param{k, v}
 						params[i] = *param
 						i++
 					}
@@ -151,19 +153,27 @@ func (c *connection) readPump() {
 			}
 			// fmt.Printf("Params: %+v", m.Data["params"])
 			// dom := Route(m.Data["route"].(string)[1:], params)
-			handle, paramsFromRequest, _ := router.Lookup(m.Type, m.Data["route"].(string))
-			var dom *DOM
+
+			handle, paramsFromRequest, _ := rtr.Lookup(m.Type, m.Data["route"].(string))
+			var dom *element.DOM
 			if handle != nil {
 				fmt.Printf("Routing success: %v\n", paramsFromRequest)
 
 				dom = handle(paramsFromRequest)
+				// PrintDOM(ActiveDOM, "1")
+
+				fmt.Printf("ActiveDOM: %+v\n", ActiveDOM)
+				fmt.Printf("New DOM: %+v\n", dom)
+				// fmt.Printf("Active dom is the same to new DOM: %v\n", *ActiveDOM == *dom)
+				// PrintDOM(dom, "2")
 			} else {
 				fmt.Println("Routing failure, no handler")
 
 				dom = ActiveDOM
 			}
 
-			patches := Diff(ActiveDOM.View, dom.View)
+			patches := Diff(&ActiveDOM.View, &dom.View)
+			fmt.Printf("Patches: %+v\n", patches)
 			ActiveDOM = dom
 			message, err := json.Marshal(patches)
 			if err != nil {

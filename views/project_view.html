@@ -1,0 +1,49 @@
+<h1>Project {{.TYPE.Id}}</h1>
+<dl class="sub-nav">
+  <dd><a href="#" data-action="edit" data-id="{{.TYPE.Id}}" class="action">Edit</a>
+  </dd>
+  <dd><a href="#" data-action="delete" data-id="{{.TYPE.Id}}" data-model="Project" class="delete-action">Delete</a>
+  </dd>
+</dl>
+<div class="row">
+  <div class="large-3 column">
+    <h1>{{.TYPE.Name}}</h1>
+  </div>
+</div>
+<div class="row">
+  <div class="large-1 column">
+    <strong>Git name</strong>
+  </div>
+  <div class="large-3 column end">
+    <span>{{.TYPE.GitName}}</span>
+  </div>
+</div>
+<div class="row">
+  <div class="large-1 column">
+    <strong>Origin</strong>
+  </div>
+  <div class="large-3 column end">
+    <span>{{.TYPE.Origin}}</span>
+  </div>
+</div>
+<div class="row">
+  <div class="large-12 column">
+    <h2>Dependencies</h2>
+    <ul class="no-bullet">
+      {{range .TYPE.ProjectDependencies}}
+      <li>{{.Dependency.Name}}</li>
+      {{end}}
+    </ul>
+
+  </div>
+</div>
+<div class="row">
+  <div class="large-12 column">
+    <h2>Deployments</h2>
+    <div id="deployment-list">
+      {{range .TYPE.Deployments}}
+      <div>{{.Name}} {{.Environment}} {{.Node.User}}  {{.Node.Host}} {{.Node.Port}} {{.Protocol.Name}}</div>
+       {{end}}
+    </div>
+  </div>
+</div>

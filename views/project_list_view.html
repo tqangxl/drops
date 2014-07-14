@@ -1,0 +1,23 @@
+<div class="project resource " data-id="{{.TYPE.Id}}">
+  <div class="row">
+    <div class="large-3 column">
+      <h3>{{.TYPE.Name}}</h3>
+    </div>
+    <div class="large-3 column end">
+      <span>{{.TYPE.GitName}}</span>
+      <br />
+      <span>{{.TYPE.Origin}}</span>
+    </div>
+  </div>
+  <div class="row">
+<div class="large-12 column">
+  <h5>Dependencies</h5>
+    <ul class="no-bullet">
+      {{range .TYPE.ProjectDependencies}}
+      <li>{{.Dependency.Name}}</li>
+      {{end}}
+    </ul>
+
+  </div>
+  </div>
+</div>

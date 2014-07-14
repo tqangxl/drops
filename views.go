@@ -2,115 +2,117 @@ package drops
 
 import (
 	"bytes"
-	"container/list"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"reflect"
 	"strconv"
 	"strings"
 
-	"github.com/cyfdecyf/tst"
+	"github.com/mkasner/drops/component"
+	"github.com/mkasner/drops/element"
 )
-
-type View struct {
-	Children    *list.List
-	Template    string
-	Content     string
-	InjectInto  string //ID to inject this view into
-	Provides    string //ID that this view provides, into which we can inject other views
-	ModelStruct interface{}
-	Model       map[string]interface{}
-	Return      string //key which view returns and will be used in model for templating
-
-}
 
 //Struct which holds facts for fields that are going to be rendered
 type ComponentRule struct {
 	Ignore bool
-	View   *View
+	View   *element.View
 	Label  string
 }
 
 //Renders view recurively
-func (v *View) Render() bytes.Buffer {
+func Render(v *element.View) bytes.Buffer {
 	var buffer bytes.Buffer
 	// Iterate through list and and print its contents.
 	// l := list.New()
+	fmt.Printf("Children: %+v\n", v.Children)
 	if v.Children != nil {
 		// fmt.Println("rendering children...")
-		for e := v.Children.Front(); e != nil; e = e.Next() {
+		for _, view := range v.Children {
 			// fmt.Println("rendering child...")
 
-			view := e.Value.(*View)
 			// fmt.Printf("View: %+v\n", view)
-			buff := view.Render()
+			buff := Render(view)
 			// fmt.Println(rendered)
 			// v.Content = buff.String()
 			if v.Model == nil {
-				v.Model = make(map[string]interface{})
+				v.Model = &element.Model{
+					MAP: make(map[string]interface{}),
+				}
+			}
+			if v.Model.MAP == nil {
+				v.Model.MAP = make(map[string]interface{})
 			}
 			if view.Return == "" {
 				buffer.WriteString(buff.String())
 			} else {
-				v.Model[view.Return] = buff.String()
+				v.MAP[view.Return] = buff.String()
+				// fmt.Printf("Return : %+v\n", buff.String())
 			}
 			// fmt.Printf("Buffer: %+v\n", buffer)
 		}
+	} else {
+		fmt.Printf("No children: %+v\n", v.Template)
 	}
 	// fmt.Printf("Template: %s\n", v.Template)
 	if strings.HasSuffix(v.Template, ".html") || strings.HasSuffix(v.Template, ".tpl") {
 		if v.Model == nil {
-			v.Model = make(map[string]interface{})
+			v.Model = &element.Model{MAP: make(map[string]interface{})}
 		}
 		v.Content = buffer.String()
-		fmt.Printf("Model for template: %s \n%v\n", v.Template, v.Model)
-		v.Model["Content"] = v.Content
 
-		fmt.Printf("Model struct: %v\n", v.ModelStruct)
-		if v.ModelStruct != nil {
-			buffer = RenderTemplate(v.Template, v.ModelStruct)
-			//Find which ids this view provides and generate another template onto which content should be injected
-			if v.Provides != "" {
-				templateBeforeProcess := buffer.String()
-				idIndex := strings.Index(templateBeforeProcess, v.Provides[1:])
-				if idIndex > -1 {
-					//if id exist find out for index of character '>'
-					tagEndIndex := strings.IndexRune(templateBeforeProcess[idIndex:], '>')
-					if tagEndIndex > -1 {
-						//If i find tag end index
-						fmt.Printf("idIndex: %v  tagEndIndex: %v \n", idIndex, tagEndIndex)
-						var newBuffer bytes.Buffer
-						newBuffer.WriteString(templateBeforeProcess[:idIndex+tagEndIndex+1])
-						newBuffer.WriteString(v.Content)
-						newBuffer.WriteString(templateBeforeProcess[idIndex+tagEndIndex+2:])
-						buffer = newBuffer
-					}
-				}
-			}
-		} else {
-			buffer = RenderTemplate(v.Template, v.Model)
+		v.Model.MAP["Content"] = v.Content
+		// fmt.Printf("Model for template: %s \n%+v\n", v.Template, v.Model)
 
-		}
+		// fmt.Printf("Model struct: %v\n", v.ModelStruct)
+		// if v.ModelStruct != nil {
+		// 	buffer = RenderTemplate(v.Template, v.ModelStruct)
+		// 	//Find which ids this view provides and generate another template onto which content should be injected
+		// 	if v.Provides != "" {
+		// 		templateBeforeProcess := buffer.String()
+		// 		idIndex := strings.Index(templateBeforeProcess, v.Provides[1:])
+		// 		if idIndex > -1 {
+		// 			//if id exist find out for index of character '>'
+		// 			tagEndIndex := strings.IndexRune(templateBeforeProcess[idIndex:], '>')
+		// 			if tagEndIndex > -1 {
+		// 				//If i find tag end index
+		// 				fmt.Printf("idIndex: %v  tagEndIndex: %v \n", idIndex, tagEndIndex)
+		// 				var newBuffer bytes.Buffer
+		// 				newBuffer.WriteString(templateBeforeProcess[:idIndex+tagEndIndex+1])
+		// 				newBuffer.WriteString(v.Content)
+		// 				newBuffer.WriteString(templateBeforeProcess[idIndex+tagEndIndex+2:])
+		// 				buffer = newBuffer
+		// 			}
+		// 		}
+		// 	}
+		// } else {
+
+		buffer = RenderTemplate(v.Template, v.Model)
+		// fmt.Printf("Template: %s, Rendered: %s\n", v.Template, buffer.String())
+		// }
 	} else {
+		// fmt.Printf("Rendering just string: %+v\n", v.Template)
 		buffer.WriteString(v.Template)
 	}
 	return buffer
 }
 
-func RenderTemplate(templateName string, data interface{}) bytes.Buffer {
+func RenderTemplate(templateName string, data *element.Model) bytes.Buffer {
 	var buffer bytes.Buffer
 	// t, _ := template.ParseFiles(templateName)
-	fmt.Printf("Rendering template: %+v\n", templateName)
+	// fmt.Printf("Rendering template: %+v\n", templateName)
 	if t, ok := Templates[templateName]; ok {
 		t.Execute(&buffer, data)
 	}
+	// fmt.Printf("\n%+v\n", buffer.String())
 	return buffer
 }
 
 //Adds element to dom structure to parent specified in InjectTo field
-func Add(dom *DOM, view *View) *DOM {
-	parent := dom.Children
+func Add(dom *element.DOM, view *element.View) *element.DOM {
+	parent := &dom.View
 	// fmt.Printf("Provides: %s\n", view.Provides)
+	// fmt.Printf("Returns: %s\n", view.Return)
 	// fmt.Printf("InjectInto: %s\n", view.InjectInto)
 
 	if view.Provides != "" {
@@ -119,48 +121,74 @@ func Add(dom *DOM, view *View) *DOM {
 	//if view.InjectInto != "" && view.Return == "" {
 	if view.InjectInto != "" {
 		if node := dom.IdTree.Get(view.InjectInto); node != nil {
-			// fmt.Printf("Node: %+v\n", node)
-			parentView := node.(*View)
-			if parentView.Children == nil {
-				parentView.Children = list.New()
-			}
-			parent = parentView.Children
+			// fmt.Printf("Injecting into Node: %+v\n", node)
+			// if parentView.Children == nil {
+			// 	parentView.Children = list.New()
+			// }
+			parent = node
+			// fmt.Printf("ParentView children before: %+v\n", parent)
+
 		}
 
 	}
+	view.Parent = parent
+	parent.Children = append(parent.Children, view)
+	// fmt.Printf("ParentView children after: %+v\n", parent)
+	// fmt.Println("Added... ")
+	// fmt.Printf("View: %+v\n", view)
+	// fmt.Printf("Dom: %+v\n", dom)
+	return dom
+}
 
-	parent.PushBack(view)
+//Replaces element at selected injectointo point, old element gets removed
+func Replace(dom *element.DOM, view *element.View) *element.DOM {
+	parent := &dom.View
+	// fmt.Printf("Provides: %s\n", view.Provides)
+	// fmt.Printf("Returns: %s\n", view.Return)
+	// fmt.Printf("InjectInto: %s\n", view.InjectInto)
+
+	if view.Provides != "" {
+		dom.IdTree.Put(view.Provides, view)
+	}
+	//if view.InjectInto != "" && view.Return == "" {
+	if view.InjectInto != "" {
+		if node := dom.IdTree.Get(view.InjectInto); node != nil {
+			// fmt.Printf("Injecting into Node: %+v\n", node)
+			// if parentView.Children == nil {
+			// 	parentView.Children = list.New()
+			// }
+			parent = node
+			// fmt.Printf("ParentView children before: %+v\n", parent)
+
+		}
+
+	}
+	view.Parent = parent
+	parent.Children = []*element.View{view}
+	// fmt.Printf("ParentView children after: %+v\n", parent)
+	// fmt.Println("Added... ")
+	// fmt.Printf("View: %+v\n", view)
+	// fmt.Printf("Dom: %+v\n", dom)
 	return dom
 }
 
 //Adds view to existing view
 //It-s used when we don't have DOM existent
-func AddToView(view *View, newView *View) *View {
+func AddToView(view *element.View, newView *element.View) *element.View {
+	// fmt.Printf("\n\n\nBefore AddToView length: %+v\n", len(view.Children))
 	if newView != nil {
+
 		parent := view.Children
 
-		if parent == nil {
-			parent = list.New()
-		}
-		parent.PushBack(newView)
+		parent = append(parent, newView)
 		view.Children = parent
 	}
+	// fmt.Printf("After AddToView: %+v\n", len(view.Children))
 	return view
 }
 
-type DOM struct {
-	*View
-	IdTree *tst.Trie
-}
-type Head struct {
-	*View
-}
-type Body struct {
-	*View
-}
-
 //Dom currently active
-var ActiveDOM *DOM
+var ActiveDOM *element.DOM
 
 //Component for creating New objects of a model, based on a type
 //Rules: map with rules for certain field
@@ -169,15 +197,14 @@ var ActiveDOM *DOM
 //Key: field name (retreived by reflection)
 //Value: Struct tag like: name:"value" name:"value"
 //Example: form ignore
-func New(typ reflect.Type, rules map[string]string, injectInto string, title string) *View {
-	view := &View{Template: "new.tpl", InjectInto: injectInto, Model: map[string]interface{}{
-		"Title": title,
-	}}
-	var fieldset *View
-	fieldset = NewFieldset()
+func New(typ reflect.Type, rules map[string]string, injectInto string, title string) *element.View {
+	view := &element.View{Template: "new.tpl", InjectInto: injectInto, Model: &element.Model{MAP: make(map[string]interface{})}}
+	view.Model.MAP["Title"] = title
+	var fieldset *element.View
+	fieldset = component.NewFieldset()
 
-	fields := make([]*map[string]interface{}, 0)
-	fmt.Printf("NNumber of fields %+v\n", typ.NumField())
+	fields := make([]map[string]interface{}, 0)
+	fmt.Printf("Number of fields %+v\n", typ.NumField())
 	for i := 0; i < typ.NumField(); i++ {
 		fieldName := typ.Field(i).Name
 		fmt.Printf("Field name %v\n", fieldName)
@@ -186,7 +213,7 @@ func New(typ reflect.Type, rules map[string]string, injectInto string, title str
 		fieldMap["Label"] = fieldName
 		fieldMap["Name"] = fieldName
 		// fmt.Printf("Field map %v\n", fieldMap)
-		fields = append(fields, &fieldMap)
+		fields = append(fields, fieldMap)
 		fieldRule := &ComponentRule{}
 		var ruleTag string
 		if rules != nil {
@@ -206,7 +233,7 @@ func New(typ reflect.Type, rules map[string]string, injectInto string, title str
 		fieldset = AddToView(fieldset, fieldRule.View)
 	}
 
-	view.Model["Fields"] = fields
+	view.Model.MAP["Fields"] = fields
 	view = AddToView(view, fieldset)
 	fmt.Printf("Fields generated %v\n", fields)
 
@@ -225,7 +252,7 @@ func execIgnoreRule(ruleTag string, fieldRule *ComponentRule) *ComponentRule {
 		if err != nil {
 			log.Println("Ignore rule not properly set")
 		}
-		fmt.Printf("Ignore parsed %v\n", ignore)
+		// fmt.Printf("Ignore parsed %v\n", ignore)
 		fieldRule.Ignore = ignore
 	}
 
@@ -238,7 +265,7 @@ func execIgnoreRule(ruleTag string, fieldRule *ComponentRule) *ComponentRule {
 //model - model name for which  I must retreive object store
 func execForeignRule(ruleTag string, fieldMap map[string]interface{}, fieldRule *ComponentRule) *ComponentRule {
 	model := GetRule(ruleTag, "foreign")
-	// var field *View
+	// var field *element.View
 	// fmt.Printf("Ignoring on creating view %v\n", fieldRule.Ignore)
 	if fieldRule.Ignore {
 		return fieldRule
@@ -248,10 +275,10 @@ func execForeignRule(ruleTag string, fieldMap map[string]interface{}, fieldRule 
 		if fieldRule.Label == "" {
 			fieldMap["Label"] = model
 		}
-		fmt.Printf("Selecting for model %v\n", model)
+		// fmt.Printf("Selecting for model %v\n", model)
 		allModel := GetAll(model)
 		for _, v := range allModel {
-			fmt.Printf("Model value %v\n", v)
+			// fmt.Printf("Model value %v\n", v)
 			if _, ok := v["Label"]; !ok {
 				v["Label"] = v["Name"] //example usage, if label not set
 			}
@@ -267,29 +294,27 @@ func execForeignRule(ruleTag string, fieldMap map[string]interface{}, fieldRule 
 		}
 		fieldMap["Options"] = allModel
 
-		fieldRule.View = NewSelect(fieldMap)
+		fieldRule.View = component.NewSelect(fieldMap)
 	} else {
-		fieldRule.View = NewInputText(fieldMap)
+		fieldRule.View = component.NewInputText(fieldMap)
 	}
 	return fieldRule
 }
 
-func ViewModel(value interface{}, rules map[string]string, injectInto string, title string, template string) *View {
+func ViewModel(value interface{}, rules map[string]string, injectInto string, title string, template string) *element.View {
 	chosenTemplate := "view.tpl"
 	if template != "" {
 		chosenTemplate = template //override chosen template
 	}
-	view := &View{Template: chosenTemplate, InjectInto: injectInto, Model: map[string]interface{}{
-		"Title": title,
-	}}
-
+	view := &element.View{Template: chosenTemplate, InjectInto: injectInto, Model: &element.Model{MAP: make(map[string]interface{})}}
+	view.Model.MAP["Title"] = title
 	typ := reflect.TypeOf(value).Elem()
 	val := reflect.Indirect(reflect.ValueOf(value))
 
 	fields := make([]*map[string]interface{}, 0)
 	for i := 0; i < typ.NumField(); i++ {
 		fieldName := typ.Field(i).Name
-		fmt.Printf("Field name %v\n", fieldName)
+		// fmt.Printf("Field name %v\n", fieldName)
 
 		fieldMap := make(map[string]interface{}) //map passed to field generator
 		fieldMap["Label"] = fieldName
@@ -298,10 +323,10 @@ func ViewModel(value interface{}, rules map[string]string, injectInto string, ti
 		fields = append(fields, &fieldMap)
 		if rules != nil {
 			if ruleTag, ok := rules[fieldName]; ok {
-				fmt.Printf("Rule tag %v\n", ruleTag)
+				// fmt.Printf("Rule tag %v\n", ruleTag)
 
 				ignoreRule := GetRule(ruleTag, "ignore")
-				fmt.Printf("Ignore rule %v\n", ignoreRule)
+				// fmt.Printf("Ignore rule %v\n", ignoreRule)
 				if ignoreRule != "" {
 					ignore, err := strconv.ParseBool(ignoreRule)
 					if err != nil {
@@ -316,31 +341,29 @@ func ViewModel(value interface{}, rules map[string]string, injectInto string, ti
 			}
 		}
 	}
-	view.Model["Fields"] = fields
-	view.Model["Id"] = val.FieldByName("Id").Interface()
-	fmt.Printf("Fields generated %v\n", fields)
+	view.MAP["Fields"] = fields
+	view.MAP["Id"] = val.FieldByName("Id").Interface()
+	// fmt.Printf("Fields generated %v\n", fields)
 
 	return view
 
 }
 
 //Magical method that creates form for editing based on provided value
-func Edit(value interface{}, rules map[string]string, injectInto string, title string) *View {
-	view := &View{Template: "edit.tpl", InjectInto: injectInto, Model: map[string]interface{}{
-		"Title": title,
-	}}
-
-	fieldset := NewFieldset()
+func Edit(value interface{}, rules map[string]string, injectInto string, title string) *element.View {
+	view := &element.View{Template: "edit.tpl", InjectInto: injectInto, Model: &element.Model{MAP: make(map[string]interface{})}}
+	view.MAP["Title"] = title
+	fieldset := component.NewFieldset()
 
 	typ := reflect.TypeOf(value).Elem()
 	val := reflect.Indirect(reflect.ValueOf(value))
 
-	fmt.Printf("Converted typ %v\n", typ)
+	// fmt.Printf("Converted typ %v\n", typ)
 
 	fields := make([]*map[string]interface{}, 0)
 	for i := 0; i < typ.NumField(); i++ {
 		fieldName := typ.Field(i).Name
-		fmt.Printf("Field name %v\n", fieldName)
+		// fmt.Printf("Field name %v\n", fieldName)
 
 		fieldMap := make(map[string]interface{}) //map passed to field generator
 		fieldMap["Label"] = fieldName
@@ -366,11 +389,87 @@ func Edit(value interface{}, rules map[string]string, injectInto string, title s
 		// fmt.Printf("Rule at the moment %v\n", fieldRule)
 		fieldset = AddToView(fieldset, fieldRule.View)
 	}
-	view.Model["Fields"] = fields
+	view.MAP["Fields"] = fields
 	view = AddToView(view, fieldset)
-	view.Model["Id"] = val.FieldByName("Id").Interface()
-	fmt.Printf("Fields generated %v\n", fields)
+	view.MAP["Id"] = val.FieldByName("Id").Interface()
+	// fmt.Printf("Fields generated %v\n", fields)
 
 	return view
 
+}
+
+func PrintDOM(dom *element.DOM, tag string) {
+	var buffer bytes.Buffer
+	fmt.Fprintf(&buffer, "DOM: %+v\n", dom.Id)
+	fmt.Println(&buffer, "View: %v\n")
+	PrintView(&buffer, &dom.View)
+
+	fmt.Fprintln(&buffer, "\n")
+	fmt.Fprintln(&buffer, "IdTree: %v\n")
+	PrintTree(&buffer, dom.IdTree)
+	filename := "/tmp/dom" + tag + ".txt"
+	err := ioutil.WriteFile(filename, buffer.Bytes(), 0644)
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func PrintView(buffer *bytes.Buffer, view *element.View) {
+	fmt.Fprintf(buffer, "View: %+v\n", view)
+	if view.Children != nil {
+		// fmt.Println("rendering children...")
+		for _, view := range view.Children {
+			// fmt.Println("rendering child...")
+
+			// fmt.Printf("View: %+v\n", view)
+			PrintView(buffer, view)
+
+		}
+	}
+}
+
+func PrintTree(buffer *bytes.Buffer, tree *element.ViewTrie) {
+	fmt.Fprintf(buffer, "%+v\n", tree)
+}
+
+//Makes a snapshot of provided DOM, and enables us to make new views on it, and compare it to old one
+func CopyDom(dom element.DOM) *element.DOM {
+	newDOM := dom
+	// newView := copyView(*dom.View)
+	// newTrie := copyIdTrie(*dom.IdTree)
+	// newDOM.View = dom.View
+	// newDOM.IdTree = copyIdTrie(dom.IdTree)
+	newDOM.Id = "2"
+	// copyChildren]
+	idTree := &element.ViewTrie{}
+	newView := copyView(dom.View, idTree)
+	newDOM.View = newView
+	newDOM.IdTree = idTree
+
+	// fmt.Printf("New DOM copied: %+v\n", newDOM)
+	// fmt.Printf("ActiveDOM old: %+v\n", dom)
+	return &newDOM
+}
+
+func copyView(v element.View, idTree *element.ViewTrie) element.View {
+
+	var newChildren []*element.View
+	copy(newChildren, v.Children)
+	if newChildren != nil {
+		// fmt.Println("rendering children...")
+		for i, view := range v.Children {
+			// fmt.Println("rendering child...")
+
+			// fmt.Printf("View: %+v\n", view)
+			childView := copyView(*view, idTree)
+			newChildren[i] = &childView
+
+		}
+	} else {
+		v.Children = newChildren
+	}
+	if v.Provides != "" {
+		idTree.Put(v.Provides, &v)
+	}
+	return v
 }

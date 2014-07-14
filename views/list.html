@@ -1,0 +1,24 @@
+<h1>{{.MAP.Title}}</h1>
+<dl class="sub-nav">
+  <dd><a href="#" data-action="new" class="action">New</a></dd>
+</dl>
+<table>
+<thead>
+<tr>
+
+{{range .MAP.ColumnNames}} <th>{{.}}</th>{{end}}
+</tr>
+</thead>
+<tbody>
+{{range .MAP.RowValues}}
+<tr class="resource" data-id="{{.Id}}">
+{{range .ColumnValues}}
+<td>
+	{{.}}
+</td>
+
+{{end}}
+</tr>
+{{end}}
+</tbody>
+</table>

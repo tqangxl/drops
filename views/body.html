@@ -1,0 +1,42 @@
+    <div class="row fullWidth">
+      <div class="large-2 columns sidebar">
+       <h1>dplr</h1>
+       <span class="subtitle">DEPLOYMENT TOOL</span>
+       <ul class="side-nav">
+        <li><a href="/deployment/">Deployments</a></li>
+        <li><a href="/project/">Projects</a></li>
+        <li><a href="/node/">Nodes</a></li>
+        <li><a href="/user/">Users</a></li>
+      </ul>
+    </div>
+    <div class="large-10 columns">
+      <div class="row">
+        <div  class="large-12 columns">
+         <div class="panel">
+           <span id="alert"></span>
+         </div>
+
+       </div>
+     </div>
+     <div class="row">
+      <div class="large-12 columns">
+        {{.MAP.Content}}
+      </div>
+
+
+    </div>
+  </div>
+</div>
+<div class="row">
+  <!-- <footer>Footer</footer> -->
+</div>
+
+
+
+<script src="/assets/js/vendor/jquery.js"></script>
+<script src="/assets/js/foundation.min.js"></script>
+<script src="/assets/js/vendor/jquery.velocity.min.js"></script>
+<script src="/assets/js/drops.js"></script>
+<script>
+  $(document).foundation();
+</script>

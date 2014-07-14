@@ -7,10 +7,6 @@ type DAO interface {
 	GetAll() []map[string]interface{}
 }
 
-//type for holding result as map
-//not using at the moment
-type Model map[string]interface{}
-
 //if struct can convert itself to interface
 //not using at the moment
 type Mappable interface {

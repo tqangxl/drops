@@ -1,0 +1,22 @@
+<h1>{{.MAP.Title}} {{.MAP.Id}}</h1>
+<dl class="sub-nav">
+	<dd><a href="#" data-action="edit" data-id="{{.MAP.Id}}" class="action">Edit</a></dd>
+	<dd><a href="#" data-action="delete" data-id="{{.MAP.Id}}" class="action">Delete</a></dd>
+</dl>
+<div class="row">
+	<div class="large-2 column">
+
+		<a href="#" data-id="{{.MAP.Id}}"class="button tiny deploy-btn">Deploy</a>
+	</div>
+</div>
+{{range .MAP.Fields}}
+<div class="row">
+	<div class="large-2 column">
+		<span>{{.Label}}</span> 
+	</div>
+	<div class="large-4 column end">
+		<span>{{.Value}}</span>
+	</div>
+</div>
+{{end}}
+</form>

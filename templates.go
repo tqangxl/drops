@@ -9,29 +9,29 @@ import (
 	"text/template"
 )
 
-const newTplString = `<h1>{{.Title}} NEW</h1>
-<form id="form-new" data-model="{{.Title}}">
+const newTplString = `<h1>{{.MAP.Title}} NEW</h1>
+<form id="form-new" data-model="{{.MAP.Title}}">
 	<button type="submit" class="small">Save</button>
-	{{.Fieldset}}
+	{{.MAP.Fieldset}}
 	<button type="submit"  class="small">Save</button>
 </form>`
 
-const editTplString = `<h1>{{.Title}} EDIT</h1>
+const editTplString = `<h1>{{.MAP.Title}} EDIT</h1>
 <dl class="sub-nav">
-  <dd><a href="#" data-action="delete" data-id="{{.Id}}" data-model="{{.Title}}" class="delete-action">Delete</a></dd>
+  <dd><a href="#" data-action="delete" data-id="{{.MAP.Id}}" data-model="{{.MAP.Title}}" class="delete-action">Delete</a></dd>
 </dl>
-<form id="form-edit" data-model="{{.Title}}" data-id="{{.Id}}">
+<form id="form-edit" data-model="{{.MAP.Title}}" data-id="{{.MAP.Id}}">
 	<button type="submit" class="small">Save</button>
-{{.Fieldset}}
+{{.MAP.Fieldset}}
 	<button type="submit"  class="small">Save</button>
 </form>`
 
-const viewTplString = `<h1>{{.Title}} {{.Id}}</h1>
+const viewTplString = `<h1>{{.MAP.Title}} {{.MAP.Id}}</h1>
 <dl class="sub-nav">
-  <dd><a href="#" data-action="edit" data-id="{{.Id}}" class="action">Edit</a></dd>
-  <dd><a href="#" data-action="delete" data-id="{{.Id}}" data-model="{{.Title}}" class="delete-action">Delete</a></dd>
+  <dd><a href="#" data-action="edit" data-id="{{.MAP.Id}}" class="action">Edit</a></dd>
+  <dd><a href="#" data-action="delete" data-id="{{.MAP.Id}}" data-model="{{.MAP.Title}}" class="delete-action">Delete</a></dd>
 </dl>
-	{{range .Fields}}
+	{{range .MAP.Fields}}
 	<div class="row">
 		<div class="large-2 column">
 			<span>{{.Label}}</span>
@@ -44,9 +44,9 @@ const viewTplString = `<h1>{{.Title}} {{.Id}}</h1>
 
 //Select tag
 const selectTplString = `
-<label>{{.Label}}
-<select name="{{.Name}}">
-	{{range .Options}}
+<label>{{.MAP.Label}}
+<select name="{{.MAP.Name}}">
+	{{range .MAP.Options}}
 	<option value="{{.Id}}" {{if .Selected}}{{.Selected}} {{end}}">{{.Label}}</option>
 	{{end}}
 </select>
@@ -55,7 +55,7 @@ const selectTplString = `
 
 //Input tag
 const inputTextTplString = `
-<label>{{.Label}}<input type="text" name="{{.Name}}" value="{{if .Value}} {{.Value}} {{end}}"/></label>
+<label>{{.MAP.Label}}<input type="text" name="{{.MAP.Name}}" value="{{if .MAP.Value}} {{.MAP.Value}} {{end}}"/></label>
 `
 
 var newTpl, editTpl, viewTpl, selectTpl *template.Template
@@ -78,7 +78,7 @@ func init() {
 	Templates[templ.Name()] = templ
 	templ = template.Must(template.New("inputText.tpl").Parse(inputTextTplString))
 	Templates[templ.Name()] = templ
-	templ = template.Must(template.New("fieldset.tpl").Parse("<fieldset>{{.Content}}</fieldset>"))
+	templ = template.Must(template.New("fieldset.tpl").Parse("<fieldset>{{.MAP.Content}}</fieldset>"))
 	Templates[templ.Name()] = templ
 
 	NewEventDispatcher()

@@ -1,0 +1,27 @@
+<h1>{{.TYPE.Title}}</h1>
+<dl class="sub-nav">
+  <dd><a href="#" data-action="new" class="action">New</a></dd>
+</dl>
+<table>
+<thead>
+<tr>
+
+{{range .MAP.ColumnNames}} <th>{{.}}</th>{{end}}
+</tr>
+</thead>
+<tbody>
+{{range .MAP.RowValues}}
+<tr class="resource" data-id="{{.Id}}">
+{{range .MAP.ColumnValues}}
+<td>
+	{{.}}
+</td>
+	
+{{end}}
+<td>
+<a href="#" data-id="{{.Id}}"class="button tiny deploy-btn">Deploy</a>
+</td>
+</tr>
+{{end}}
+</tbody>
+</table>

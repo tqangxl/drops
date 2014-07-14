@@ -4,44 +4,48 @@ package drops
 
 import (
 	"fmt"
-	"github.com/zenazn/goji"
 	"log"
 	"net/http"
+
+	"github.com/mkasner/drops/element"
+	"github.com/mkasner/drops/router"
+	"github.com/zenazn/goji"
+	"github.com/zenazn/goji/web"
 )
 
-var router *Router
+var rtr *router.Router
 
 func NewDrops() {
-	router = NewRouter()
+	rtr = router.NewRouter()
 }
 
-// GET is a shortcut for router.Handle("GET", path, handle)
-func GET(path string, handle Handle) {
-	router.Handle("GET", path, handle)
+// GET is a shortcut for r.Handle("GET", path, handle)
+func GET(path string, handle router.Handle) {
+	rtr.Handle("GET", path, handle)
 }
 
-// POST is a shortcut for router.Handle("POST", path, handle)
-func POST(path string, handle Handle) {
-	router.Handle("POST", path, handle)
+// POST is a shortcut for r.Handle("POST", path, handle)
+func POST(path string, handle router.Handle) {
+	rtr.Handle("POST", path, handle)
 }
 
-// PUT is a shortcut for router.Handle("PUT", path, handle)
-func PUT(path string, handle Handle) {
-	router.Handle("PUT", path, handle)
+// PUT is a shortcut for r.Handle("PUT", path, handle)
+func PUT(path string, handle router.Handle) {
+	rtr.Handle("PUT", path, handle)
 }
 
-// PATCH is a shortcut for router.Handle("PATCH", path, handle)
-func PATCH(path string, handle Handle) {
-	router.Handle("PATCH", path, handle)
+// PATCH is a shortcut for r.Handle("PATCH", path, handle)
+func PATCH(path string, handle router.Handle) {
+	rtr.Handle("PATCH", path, handle)
 }
 
-// DELETE is a shortcut for router.Handle("DELETE", path, handle)
-func DELETE(path string, handle Handle) {
-	router.Handle("DELETE", path, handle)
+// DELETE is a shortcut for r.Handle("DELETE", path, handle)
+func DELETE(path string, handle router.Handle) {
+	rtr.Handle("DELETE", path, handle)
 }
 
 // Api path for returning  regular htp handler
-func HandleFunc(path string, handle http.HandlerFunc) {
+func HandleFunc(path string, handle web.HandlerFunc) {
 	goji.Get(path, handle)
 }
 
@@ -57,8 +61,8 @@ func ResourceHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Resource handler: %s - %s\n", r.Method, r.URL.Path)
 	var response string
 
-	handle, paramsFromRequest, _ := router.Lookup(r.Method, r.URL.Path)
-	var dom *DOM
+	handle, paramsFromRequest, _ := rtr.Lookup(r.Method, r.URL.Path)
+	var dom *element.DOM
 	if handle != nil {
 		log.Printf("Routing success: %v\n", paramsFromRequest)
 		dom = handle(paramsFromRequest)
@@ -68,7 +72,7 @@ func ResourceHandler(w http.ResponseWriter, r *http.Request) {
 	// if drops.ActiveDOM == nil {
 	if dom != nil {
 		ActiveDOM = dom
-		buffer := dom.Render()
+		buffer := Render(&dom.View)
 		response = buffer.String()
 	}
 	// } else {    //Only used for testing purposes
