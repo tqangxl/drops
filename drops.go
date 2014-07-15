@@ -49,6 +49,10 @@ func HandleFunc(path string, handle web.HandlerFunc) {
 	goji.Get(path, handle)
 }
 
+func EVENT(path string, handle router.Handle) {
+	rtr.Handle("EVENT", path, handle)
+}
+
 func Serve() {
 	goji.Get("/assets/*", Assets)
 	goji.Handle("/ws", ServeWs)
