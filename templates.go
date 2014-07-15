@@ -47,7 +47,7 @@ const selectTplString = `
 <label>{{.MAP.Label}}
 <select name="{{.MAP.Name}}">
 	{{range .MAP.Options}}
-	<option value="{{.Id}}" {{if .Selected}}{{.Selected}} {{end}}">{{.Label}}</option>
+	<option value="{{.Id}}" {{if .Selected}}{{.Selected}}{{end}}">{{.Label}}</option>
 	{{end}}
 </select>
 </label>
@@ -55,7 +55,7 @@ const selectTplString = `
 
 //Input tag
 const inputTextTplString = `
-<label>{{.MAP.Label}}<input type="text" name="{{.MAP.Name}}" value="{{if .MAP.Value}} {{.MAP.Value}} {{end}}"/></label>
+<label>{{.MAP.Label}}<input type="text" name="{{.MAP.Name}}" value="{{if .MAP.Value}}{{.MAP.Value}}{{end}}"/></label>
 `
 
 var newTpl, editTpl, viewTpl, selectTpl *template.Template
@@ -79,6 +79,10 @@ func init() {
 	templ = template.Must(template.New("inputText.tpl").Parse(inputTextTplString))
 	Templates[templ.Name()] = templ
 	templ = template.Must(template.New("fieldset.tpl").Parse("<fieldset>{{.MAP.Content}}</fieldset>"))
+	Templates[templ.Name()] = templ
+	templ = template.Must(template.New("message.tpl").Parse(`<li class="{{.TYPE.Type}}">{{.TYPE.Text}}</li>`))
+	Templates[templ.Name()] = templ
+	templ = template.Must(template.New("messagePanel.tpl").Parse(`<ul id="message" class="panel no-bullet">{{.MAP.Content}}</ul>`))
 	Templates[templ.Name()] = templ
 
 	NewEventDispatcher()

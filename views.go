@@ -59,6 +59,9 @@ func Render(v *element.View) bytes.Buffer {
 		if v.Model == nil {
 			v.Model = &element.Model{MAP: make(map[string]interface{})}
 		}
+		if v.Model.MAP == nil {
+			v.Model.MAP = make(map[string]interface{})
+		}
 		v.Content = buffer.String()
 
 		v.Model.MAP["Content"] = v.Content

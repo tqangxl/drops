@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/mkasner/drops/element"
 	"github.com/mkasner/drops/router"
 )
 
@@ -68,76 +67,7 @@ func (c *connection) readPump() {
 		//Check to see if its url change
 		switch m.Type {
 		case "GET":
-			//for testing purposes I will test 1000 iterations of dom change
-			// // results around 250 ops/sec
-			// iterations := 1000
-			// randomKeys := RandomKeys(iterations)
-			// // fmt.Printf("randomKeys: %+v\n", randomKeys)
-			// start := time.Now()
-			// for _, route := range randomKeys {
-			// 	dom := Route(route)
-			// 	e := dom.View.Children.Back() //Get body el
-			// 	view := e.Value.(*element.View)
-			// 	e = view.Children.Back()
-			// 	view = e.Value.(*element.View)
-			// 	buffer := view.Render()
-			// 	var response string
-			// 	response = buffer.String()
-			// 	patch := &Patch{Element: "#header", Payload: response}
-			// 	message, err := json.Marshal(patch)
-			// 	if err != nil {
-			// 		log.Println("Error marshaling patch")
-			// 	}
-			// 	// fmt.Printf("Response created: %s\n", response)
-			// 	c.send <- message
-			// }
-			// elapsed := time.Since(start)
-			// fmt.Printf("%s took %s\n", "Example renders "+strconv.Itoa(iterations)+" iterations", elapsed)
-			// opssec := float64(iterations) / elapsed.Seconds()
-			// fmt.Printf("Performance: %f ops/sec", opssec)
-			//End testing block
 
-			// This works but uses hardcoded element
-			// dom := Route(m.Data[1:])
-			// e := dom.View.Children.Back() //Get body el
-			// view := e.Value.(*element.View)
-			// e = view.Children.Back()
-			// view = e.Value.(*element.View)
-			// buffer := view.Render()
-			// var response string
-			// response = buffer.String()
-			// patch := &Patch{Element: "#header", Payload: response}
-			// message, err := json.Marshal(patch)
-			// if err != nil {
-			// 	log.Println("Error marshaling patch")
-			// }
-			// fmt.Printf("Response created: %s\n", response)
-
-			//for testing purposes I will test 1000 iterations of dom change
-			// and do the patching
-			// // results around 250 ops/sec
-			// iterations := 1000
-			// randomKeys := RandomKeys(iterations)
-			// // fmt.Printf("randomKeys: %+v\n", randomKeys)
-			// start := time.Now()
-			// for _, route := range randomKeys {
-			// 	dom := Route(route)
-			// 	patches := Diff(ActiveDOM.View, dom.View)
-			// 	ActiveDOM = dom
-			// 	message, err := json.Marshal(patches)
-			// 	if err != nil {
-			// 		log.Println("Error marshaling patch")
-			// 	}
-			// 	// fmt.Printf("Response created: %s\n", response)
-			// 	c.send <- message
-			// }
-			// elapsed := time.Since(start)
-			// fmt.Printf("%s took %s\n", "Example renders "+strconv.Itoa(iterations)+" iterations", elapsed)
-			// opssec := float64(iterations) / elapsed.Seconds()
-			// fmt.Printf("Performance: %f ops/sec", opssec)
-			//End testing block
-
-			//Currently implementing new router
 			var params router.Params
 			if _, ok := m.Data["params"]; ok { //if params exist
 				paramsMap := m.Data["params"].(map[string]interface{})
@@ -155,33 +85,13 @@ func (c *connection) readPump() {
 			// dom := Route(m.Data["route"].(string)[1:], params)
 
 			handle, paramsFromRequest, _ := rtr.Lookup(m.Type, m.Data["route"].(string))
-			var dom *element.DOM
-			if handle != nil {
-				fmt.Printf("Routing success: %v\n", paramsFromRequest)
-
-				dom = handle(paramsFromRequest)
-				// PrintDOM(ActiveDOM, "1")
-
-				fmt.Printf("ActiveDOM: %+v\n", ActiveDOM)
-				fmt.Printf("New DOM: %+v\n", dom)
-				// fmt.Printf("Active dom is the same to new DOM: %v\n", *ActiveDOM == *dom)
-				// PrintDOM(dom, "2")
-			} else {
-				fmt.Println("Routing failure, no handler")
-
-				dom = ActiveDOM
-			}
-
-			patches := Diff(&ActiveDOM.View, &dom.View)
-			fmt.Printf("Patches: %+v\n", patches)
-			ActiveDOM = dom
-			message, err := json.Marshal(patches)
+			message, err := HandleExecute(handle, paramsFromRequest)
 			if err != nil {
-				log.Println("Error marshaling patch")
+				log.Printf("Error handling: %v\n", err)
 			}
 			fmt.Printf("Patches generated: %+v\n", string(message))
 			c.send <- message
-		case "event":
+		case "EVENT":
 			fmt.Printf("Event received: %+v\n", m.Data)
 			// example event. Using this before I Implement eventDispatcher
 
@@ -197,34 +107,48 @@ func (c *connection) readPump() {
 
 				}
 			}
-			if val, ok := m.Data["action"]; ok {
-				if handler, ok := eventDispatcher[val.(string)]; ok {
-					message := handler.Handle(m.Data)
-					c.send <- message
-					continue
+
+			handle, paramsFromRequest, _ := rtr.Lookup(m.Type, m.Data["route"].(string))
+			if handle != nil {
+				newParam := router.Param{Key: "data", Value: m.Data}
+
+				paramsFromRequest = append(paramsFromRequest, newParam)
+				message, err := HandleExecute(handle, paramsFromRequest)
+				if err != nil {
+					log.Printf("Error handling: %v\n", err)
 				}
-				switch val {
-				case "new":
-
-					model := m.Data["model"].(map[string]interface{})
-					modelname := m.Data["model-name"].(string)
-					AddModel(modelname, model)
-				case "edit":
-					model := m.Data["model"].(map[string]interface{})
-					modelname := m.Data["model-name"].(string)
-					SaveModel(modelname, model)
-
-				case "delete":
-					model := m.Data["model"].(map[string]interface{})
-					modelname := m.Data["model-name"].(string)
-					DeleteModel(modelname, model)
-					//Start deployment
-					patch := &Patch{Element: "#alert", Payload: "Do you want  to undo delete of" + model["id"].(string) + "? Not yet..."}
-					message, err := json.Marshal(patch)
-					if err != nil {
-						log.Println("Error marshaling patch")
+				fmt.Printf("Patches generated: %+v\n", string(message))
+				c.send <- message
+			} else {
+				if val, ok := m.Data["action"]; ok {
+					if handler, ok := eventDispatcher[val.(string)]; ok {
+						message := handler.Handle(m.Data)
+						c.send <- message
+						continue
 					}
-					c.send <- message
+					switch val {
+					case "new":
+
+						model := m.Data["model"].(map[string]interface{})
+						modelname := m.Data["model-name"].(string)
+						AddModel(modelname, model)
+					case "edit":
+						model := m.Data["model"].(map[string]interface{})
+						modelname := m.Data["model-name"].(string)
+						SaveModel(modelname, model)
+
+					case "delete":
+						model := m.Data["model"].(map[string]interface{})
+						modelname := m.Data["model-name"].(string)
+						DeleteModel(modelname, model)
+						//Start deployment
+						patch := &Patch{Element: "#alert", Payload: "Do you want  to undo delete of" + model["id"].(string) + "? Not yet..."}
+						message, err := json.Marshal(patch)
+						if err != nil {
+							log.Println("Error marshaling patch")
+						}
+						c.send <- message
+					}
 				}
 			}
 
