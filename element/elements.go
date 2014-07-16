@@ -2,8 +2,8 @@ package element
 
 type DOM struct {
 	View
-	IdTree *ViewTrie
-	Id     string
+	IdMap map[string]*View
+	Id    string
 }
 type Head struct {
 	View

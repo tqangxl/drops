@@ -119,11 +119,11 @@ func Add(dom *element.DOM, view *element.View) *element.DOM {
 	// fmt.Printf("InjectInto: %s\n", view.InjectInto)
 
 	if view.Provides != "" {
-		dom.IdTree.Put(view.Provides, view)
+		dom.IdMap[view.Provides] = view
 	}
 	//if view.InjectInto != "" && view.Return == "" {
 	if view.InjectInto != "" {
-		if node := dom.IdTree.Get(view.InjectInto); node != nil {
+		if node, ok := dom.IdMap[view.InjectInto]; ok {
 			// fmt.Printf("Injecting into Node: %+v\n", node)
 			// if parentView.Children == nil {
 			// 	parentView.Children = list.New()
@@ -151,11 +151,11 @@ func Replace(dom *element.DOM, view *element.View) *element.DOM {
 	// fmt.Printf("InjectInto: %s\n", view.InjectInto)
 
 	if view.Provides != "" {
-		dom.IdTree.Put(view.Provides, view)
+		dom.IdMap[view.Provides] = view
 	}
 	//if view.InjectInto != "" && view.Return == "" {
 	if view.InjectInto != "" {
-		if node := dom.IdTree.Get(view.InjectInto); node != nil {
+		if node, ok := dom.IdMap[view.InjectInto]; ok {
 			// fmt.Printf("Injecting into Node: %+v\n", node)
 			// if parentView.Children == nil {
 			// 	parentView.Children = list.New()
@@ -189,9 +189,6 @@ func AddToView(view *element.View, newView *element.View) *element.View {
 	// fmt.Printf("After AddToView: %+v\n", len(view.Children))
 	return view
 }
-
-//Dom currently active
-var ActiveDOM *element.DOM
 
 //Component for creating New objects of a model, based on a type
 //Rules: map with rules for certain field
@@ -409,7 +406,7 @@ func PrintDOM(dom *element.DOM, tag string) {
 
 	fmt.Fprintln(&buffer, "\n")
 	fmt.Fprintln(&buffer, "IdTree: %v\n")
-	PrintTree(&buffer, dom.IdTree)
+	PrintTree(&buffer, dom.IdMap)
 	filename := "/tmp/dom" + tag + ".txt"
 	err := ioutil.WriteFile(filename, buffer.Bytes(), 0644)
 	if err != nil {
@@ -431,8 +428,8 @@ func PrintView(buffer *bytes.Buffer, view *element.View) {
 	}
 }
 
-func PrintTree(buffer *bytes.Buffer, tree *element.ViewTrie) {
-	fmt.Fprintf(buffer, "%+v\n", tree)
+func PrintTree(buffer *bytes.Buffer, idMap map[string]*element.View) {
+	fmt.Fprintf(buffer, "%+v\n", idMap)
 }
 
 //Makes a snapshot of provided DOM, and enables us to make new views on it, and compare it to old one
@@ -444,17 +441,17 @@ func CopyDom(dom element.DOM) *element.DOM {
 	// newDOM.IdTree = copyIdTrie(dom.IdTree)
 	newDOM.Id = "2"
 	// copyChildren]
-	idTree := &element.ViewTrie{}
-	newView := copyView(dom.View, idTree)
+	idMap := make(map[string]*element.View)
+	newView := copyView(dom.View, idMap)
 	newDOM.View = newView
-	newDOM.IdTree = idTree
+	newDOM.IdMap = idMap
 
 	// fmt.Printf("New DOM copied: %+v\n", newDOM)
 	// fmt.Printf("ActiveDOM old: %+v\n", dom)
 	return &newDOM
 }
 
-func copyView(v element.View, idTree *element.ViewTrie) element.View {
+func copyView(v element.View, idMap map[string]*element.View) element.View {
 
 	var newChildren []*element.View
 	copy(newChildren, v.Children)
@@ -464,7 +461,7 @@ func copyView(v element.View, idTree *element.ViewTrie) element.View {
 			// fmt.Println("rendering child...")
 
 			// fmt.Printf("View: %+v\n", view)
-			childView := copyView(*view, idTree)
+			childView := copyView(*view, idMap)
 			newChildren[i] = &childView
 
 		}
@@ -472,7 +469,7 @@ func copyView(v element.View, idTree *element.ViewTrie) element.View {
 		v.Children = newChildren
 	}
 	if v.Provides != "" {
-		idTree.Put(v.Provides, &v)
+		idMap[v.Provides] = &v
 	}
 	return v
 }

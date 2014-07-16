@@ -13,7 +13,9 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/mkasner/drops/element"
 	"github.com/mkasner/drops/router"
+	"github.com/mkasner/drops/session"
 )
 
 const (
@@ -42,6 +44,8 @@ type connection struct {
 
 	// Buffered channel of outbound messages.
 	send chan []byte
+
+	sessionId string
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -63,6 +67,7 @@ func (c *connection) readPump() {
 			panic(err)
 		}
 		fmt.Printf("Message %+v\n", m)
+		fmt.Printf("Session on connection %+v\n", c.sessionId)
 		// fmt.Printf("Message received: %s\n", string(message))
 		//Check to see if its url change
 		switch m.Type {
@@ -85,7 +90,7 @@ func (c *connection) readPump() {
 			// dom := Route(m.Data["route"].(string)[1:], params)
 
 			handle, paramsFromRequest, _ := rtr.Lookup(m.Type, m.Data["route"].(string))
-			message, err := HandleExecute(handle, paramsFromRequest)
+			message, err := c.handleExecute(handle, paramsFromRequest)
 			if err != nil {
 				log.Printf("Error handling: %v\n", err)
 			}
@@ -113,7 +118,7 @@ func (c *connection) readPump() {
 				newParam := router.Param{Key: "data", Value: m.Data}
 
 				paramsFromRequest = append(paramsFromRequest, newParam)
-				message, err := HandleExecute(handle, paramsFromRequest)
+				message, err := c.handleExecute(handle, paramsFromRequest)
 				if err != nil {
 					log.Printf("Error handling: %v\n", err)
 				}
@@ -173,6 +178,49 @@ func (c *connection) readPump() {
 	// }
 }
 
+//Handles event and creates DOM patch
+func (c *connection) handleExecute(handle router.Handle, paramsFromRequest router.Params) ([]byte, error) {
+	var dom *element.DOM
+	activeDOM := session.GetSessionActiveDOM(c.sessionId)
+	// fmt.Printf("Getting activeDOM: %+v", activeDOM)
+	if handle != nil {
+		sessionParam := router.Param{Key: "session", Value: c.sessionId}
+
+		paramsFromRequest = append(paramsFromRequest, sessionParam)
+		fmt.Printf("Routing success: %v\n", paramsFromRequest)
+
+		dom = handle(nil, nil, paramsFromRequest)
+		// PrintDOM(ActiveDOM, "1")
+
+		fmt.Printf("ActiveDOM: %+v\n", activeDOM)
+		fmt.Printf("New DOM: %+v\n", dom)
+		// fmt.Printf("Active dom is the same to new DOM: %v\n", *ActiveDOM == *dom)
+		// PrintDOM(dom, "2")
+	} else {
+		fmt.Println("Routing failure, no handler")
+
+		dom = activeDOM
+	}
+	var message []byte
+	var err error
+	var patches []Patch
+	if activeDOM != nil {
+		patches = Diff(&activeDOM.View, &dom.View)
+		fmt.Printf("Patches: %+v\n", patches)
+
+		session.SetSessionActiveDOM(c.sessionId, dom)
+	} else {
+		patches = make([]Patch, 0)
+	}
+	message, err = json.Marshal(patches)
+	if err != nil {
+		log.Println("Error marshaling patch")
+	}
+	fmt.Printf("Patches generated: %+v\n", string(message))
+	return message, nil
+
+}
+
 // write writes a message with the given message type and payload.
 func (c *connection) write(mt int, payload []byte) error {
 	c.ws.SetWriteDeadline(time.Now().Add(writeWait))
@@ -219,8 +267,22 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c := &connection{send: make(chan []byte, 256), ws: ws}
+	cookie, err := r.Cookie("session")
+	if err != nil {
+		fmt.Printf("Cookie doesn't exist: %v\n", err)
+	} else {
+		fmt.Printf("\nQuerying session for id: %s\n", cookie.Value)
+		if session.SessionExist(cookie.Value) {
+			fmt.Printf("Session set on websocket connection: %s\n", cookie.Value)
+			c.sessionId = cookie.Value
+		} else {
+			fmt.Printf("Session doesn't exist: %s\n", cookie.Value)
+			fmt.Printf("Session store: %+v\n", session.SessionStore())
+		}
+	}
 	h.register <- c
-	log.Printf("Client connected: %+v\n", c)
+
+	// log.Printf("Client connected: %+v\n", c)
 	go c.writePump()
 	c.readPump()
 	// fmt.Fprintf(w, "connection success")

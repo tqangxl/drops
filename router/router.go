@@ -86,7 +86,9 @@ import (
 // Handle is a function that can be registered to a route to handle HTTP
 // requests. Like http.HandlerFunc, but has a third parameter for the values of
 // wildcards (variables).
-type Handle func(Params) *element.DOM
+type Handle func(http.ResponseWriter, *http.Request, Params) *element.DOM
+
+// type HandleHttp func(http.ResponseWriter, *http.Request, Params)
 
 // Param is a single URL parameter, consisting of a key and a value.
 type Param struct {
@@ -145,9 +147,12 @@ type Router struct {
 	PanicHandler func(http.ResponseWriter, *http.Request, interface{})
 }
 
+// Make sure the Router conforms with the http.Handler interface
+var _ http.Handler = New()
+
 // New returns a new initialized Router.
 // Path auto-correction, including trailing slashes, is enabled by default.
-func NewRouter() *Router {
+func New() *Router {
 	return &Router{
 		RedirectTrailingSlash: true,
 		RedirectFixedPath:     true,
@@ -182,6 +187,41 @@ func (r *Router) Handle(method, path string, handle Handle) {
 	root.addRoute(path, handle)
 }
 
+// HandlerFunc is an adapter which allows the usage of an http.HandlerFunc as a
+// request handle.
+func (r *Router) HandlerFunc(method, path string, handler http.HandlerFunc) {
+	r.Handle(method, path,
+		func(w http.ResponseWriter, req *http.Request, _ Params) *element.DOM {
+			handler(w, req)
+			return nil
+		},
+	)
+}
+
+// ServeFiles serves files from the given file system root.
+// The path must end with "/*filepath", files are then served from the local
+// path /defined/root/dir/*filepath.
+// For example if root is "/etc" and *filepath is "passwd", the local file
+// "/etc/passwd" would be served.
+// Internally a http.FileServer is used, therefore http.NotFound is used instead
+// of the Router's NotFound handler.
+// To use the operating system's file system implementation,
+// use http.Dir:
+//     router.ServeFiles("/src/*filepath", http.Dir("/var/www"))
+func (r *Router) ServeFiles(path string, root http.FileSystem) {
+	if len(path) < 10 || path[len(path)-10:] != "/*filepath" {
+		panic("path must end with /*filepath")
+	}
+
+	fileServer := http.FileServer(root)
+
+	r.Handle("GET", path, func(w http.ResponseWriter, req *http.Request, ps Params) *element.DOM {
+		req.URL.Path = ps.ByName("filepath").(string)
+		fileServer.ServeHTTP(w, req)
+		return nil
+	})
+}
+
 func (r *Router) recv(w http.ResponseWriter, req *http.Request) {
 	if rcv := recover(); rcv != nil {
 		r.PanicHandler(w, req, rcv)
@@ -197,4 +237,57 @@ func (r *Router) Lookup(method, path string) (Handle, Params, bool) {
 		return root.getValue(path)
 	}
 	return nil, nil, false
+}
+
+// ServeHTTP makes the router implement the http.Handler interface.
+func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if r.PanicHandler != nil {
+		defer r.recv(w, req)
+	}
+
+	if root := r.trees[req.Method]; root != nil {
+		path := req.URL.Path
+
+		if handle, ps, tsr := root.getValue(path); handle != nil {
+			handle(w, req, ps)
+			return
+		} else if req.Method != "CONNECT" && path != "/" {
+			code := 301 // Permanent redirect, request with GET method
+			if req.Method != "GET" {
+				// Temporary redirect, request with same method
+				// As of Go 1.3, Go does not support status code 308.
+				code = 307
+			}
+
+			if tsr && r.RedirectTrailingSlash {
+				if path[len(path)-1] == '/' {
+					req.URL.Path = path[:len(path)-1]
+				} else {
+					req.URL.Path = path + "/"
+				}
+				http.Redirect(w, req, req.URL.String(), code)
+				return
+			}
+
+			// Try to fix the request path
+			if r.RedirectFixedPath {
+				fixedPath, found := root.findCaseInsensitivePath(
+					CleanPath(path),
+					r.RedirectTrailingSlash,
+				)
+				if found {
+					req.URL.Path = string(fixedPath)
+					http.Redirect(w, req, req.URL.String(), code)
+					return
+				}
+			}
+		}
+	}
+
+	// Handle 404
+	if r.NotFound != nil {
+		r.NotFound(w, req)
+	} else {
+		http.NotFound(w, req)
+	}
 }

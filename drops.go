@@ -9,14 +9,14 @@ import (
 
 	"github.com/mkasner/drops/element"
 	"github.com/mkasner/drops/router"
-	"github.com/zenazn/goji"
-	"github.com/zenazn/goji/web"
+	"github.com/mkasner/drops/session"
 )
 
 var rtr *router.Router
 
 func NewDrops() {
-	rtr = router.NewRouter()
+	rtr = router.New()
+	session.NewSessionStore()
 }
 
 // GET is a shortcut for r.Handle("GET", path, handle)
@@ -44,48 +44,65 @@ func DELETE(path string, handle router.Handle) {
 	rtr.Handle("DELETE", path, handle)
 }
 
-// Api path for returning  regular htp handler
-func HandleFunc(path string, handle web.HandlerFunc) {
-	goji.Get(path, handle)
-}
-
 func EVENT(path string, handle router.Handle) {
 	rtr.Handle("EVENT", path, handle)
 }
 
-func Serve() {
-	goji.Get("/assets/*", Assets)
-	goji.Handle("/ws", ServeWs)
-	goji.Handle("/*", ResourceHandler)
-	goji.Serve()
+func HandleFunc(path string, handle http.HandlerFunc) {
+	rtr.HandlerFunc("GET", path, handle)
 }
 
-func ResourceHandler(w http.ResponseWriter, r *http.Request) {
-	// io.WriteString(w, "Deployments")
-	log.Printf("Resource handler: %s - %s\n", r.Method, r.URL.Path)
+func Serve(port string) {
+	rtr.ServeFiles("/assets/*filepath", http.Dir("assets"))
+	rtr.HandlerFunc("GET", "/ws", ServeWs)
+	// rtr.HandlerFunc("GET", "/*", ResourceHandler)
+	log.Fatal(http.ListenAndServe(":"+port, rtr))
+}
+
+func ResourceHandler(w http.ResponseWriter, r *http.Request, dom *element.DOM) *element.DOM {
+	// log.Printf("Resource handler: %s - %s\n", r.Method, r.URL.Path)
 	var response string
 
-	handle, paramsFromRequest, _ := rtr.Lookup(r.Method, r.URL.Path)
-	var dom *element.DOM
-	if handle != nil {
-		log.Printf("Routing success: %v\n", paramsFromRequest)
-		dom = handle(paramsFromRequest)
-	} else {
-		log.Println("Routing failure, no handler")
-	}
+	// handle, paramsFromRequest, _ := rtr.Lookup(r.Method, r.URL.Path)
+	// var dom *element.DOM
+	// if handle != nil {
+	// 	log.Printf("Routing success: %v\n", paramsFromRequest)
+	// 	dom = handle(nil, nil, paramsFromRequest)
+	// } else {
+	// 	log.Println("Routing failure, no handler")
+	// }
 	// if drops.ActiveDOM == nil {
-	if dom != nil {
-		ActiveDOM = dom
+	if w != nil && dom != nil {
+		var sessionId string
+		sessionCookie, err := r.Cookie("session")
+		if err != nil {
+			// fmt.Printf("Error fetching cookie %v\n", err)
+			//No cookie found
+			sessionId = session.CreateSession("")
+			sessionCookie = &http.Cookie{Name: "session", Value: sessionId, Path: "/"}
+			// fmt.Printf("Created Cookie: %s: %+v\n", sessionCookie.Name, sessionCookie.Value)
+		} else {
+			// log.Printf("Cookie: %s: %+v\n", sessionCookie.Name, sessionCookie.Value)
+			sessionId = sessionCookie.Value
+			if !session.SessionExist(sessionId) {
+				sessionId = session.CreateSession(sessionId)
+			}
+			sessionCookie.Value = sessionId
+		}
+		// fmt.Printf("sessionId: %s\n", sessionId)
+		session.SetSessionActiveDOM(sessionId, dom)
+		// ActiveDOM = dom
 		buffer := Render(&dom.View)
 		response = buffer.String()
-	}
-	// } else {    //Only used for testing purposes
-	// buffer := drops.ActiveDOM.Render()
-	// response = buffer.String()
-	// }
-	fmt.Fprint(w, response)
+		// cookie := &http.Cookie{Name: "session", Value: sessionId}
+		// http.Set
+		http.SetCookie(w, sessionCookie)
 
-	// fmt.Fprintf(w, "%v\n", result)
+		fmt.Fprint(w, response)
+
+		return nil
+	}
+	return dom
 }
 
 //Used for static file serving
