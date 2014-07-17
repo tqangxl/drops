@@ -12,9 +12,10 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/mkasner/drops/element"
+	"github.com/mkasner/drops/protocol"
 	"github.com/mkasner/drops/router"
 	"github.com/mkasner/drops/session"
+	"github.com/mkasner/drops/store"
 )
 
 const (
@@ -122,22 +123,22 @@ func (c *connection) readPump() {
 
 						model := m.Data["model"].(map[string]interface{})
 						modelname := m.Data["model-name"].(string)
-						AddModel(modelname, model)
+						store.AddModel(modelname, model)
 					case "edit":
 						model := m.Data["model"].(map[string]interface{})
 						modelname := m.Data["model-name"].(string)
-						SaveModel(modelname, model)
+						store.SaveModel(modelname, model)
 
 					case "delete":
 						model := m.Data["model"].(map[string]interface{})
 						modelname := m.Data["model-name"].(string)
-						DeleteModel(modelname, model)
-						//Start deployment
-						patch := &Patch{Element: "#alert", Payload: "Do you want  to undo delete of" + model["id"].(string) + "? Not yet..."}
-						message, err := json.Marshal(patch)
-						if err != nil {
-							log.Println("Error marshaling patch")
-						}
+						store.DeleteModel(modelname, model)
+						// //Start deployment
+						// patch := &Patch{Element: "#alert", Payload: "Do you want  to undo delete of" + model["id"].(string) + "? Not yet..."}
+						// message, err := json.Marshal(patch)
+						// if err != nil {
+						// 	log.Println("Error marshaling patch")
+						// }
 						c.send <- message
 					}
 				}
@@ -166,7 +167,7 @@ func (c *connection) readPump() {
 
 //Handles event and creates DOM patch
 func (c *connection) handleExecute(handle router.Handle, paramsFromRequest router.Params) ([]byte, error) {
-	var dom *element.DOM
+	var dropsResponse *protocol.DropsResponse
 	activeDOM := session.GetSessionActiveDOM(c.sessionId)
 	// fmt.Printf("\nGetting activeDOM on websocket connection: %+v\n", pretty.Formatter(activeDOM))
 	if handle != nil {
@@ -175,7 +176,8 @@ func (c *connection) handleExecute(handle router.Handle, paramsFromRequest route
 		paramsFromRequest = append(paramsFromRequest, sessionParam)
 		// fmt.Printf("Routing success: %v\n", paramsFromRequest)
 
-		dom = handle(nil, nil, paramsFromRequest)
+		dropsResponse = handle(nil, nil, paramsFromRequest)
+		dropsResponse.ActiveDom = activeDOM
 		// PrintDOM(ActiveDOM, "1")
 
 		// fmt.Printf("ActiveDOM: %+v\n", activeDOM)
@@ -185,24 +187,15 @@ func (c *connection) handleExecute(handle router.Handle, paramsFromRequest route
 	} else {
 		log.Println("Routing failure, no handler")
 
-		dom = activeDOM
+		dropsResponse.Dom = activeDOM
 	}
 	var message []byte
-	var err error
-	var patches []Patch
-	if activeDOM != nil {
-		patches = Diff(&activeDOM.View, &dom.View)
-		// fmt.Printf("Patches: %+v\n", patches)
+	// var err error
+	session.SetSessionActiveDOM(c.sessionId, dropsResponse.Dom)
 
-		session.SetSessionActiveDOM(c.sessionId, dom)
-	} else {
-		patches = make([]Patch, 0)
-	}
-	message, err = json.Marshal(patches)
-	if err != nil {
-		log.Println("Error marshaling patch")
-	}
-	// fmt.Printf("Patches generated: %+v\n", string(message))
+	message = protocol.GenerateMessage(dropsResponse)
+
+	fmt.Printf("Drops response: %+v\n", string(message))
 	return message, nil
 
 }

@@ -1,16 +1,11 @@
 //Contains diff function that compares DOMs and produces difference
-package drops
+package protocol
 
 import (
 	"reflect"
 
 	"github.com/mkasner/drops/element"
 )
-
-type Patch struct {
-	Element string `json:"element"`
-	Payload string `json:"payload"`
-}
 
 const capacity = 1024
 
@@ -50,8 +45,8 @@ func testLength(view1 *element.View, view2 *element.View) ([]Patch, bool) {
 	patches := make([]Patch, 0)
 	cont := true //continue
 	if len(view1.Children) != len(view2.Children) {
-		buff := Render(view2)
-		patchElement := view2.InjectInto
+		buff := element.Render(view2)
+		patchElement := view2.Provides
 
 		patch := &Patch{Element: patchElement, Payload: buff.String()}
 		patches = append(patches, *patch)
@@ -77,7 +72,7 @@ func testEquality(view1 *element.View, view2 *element.View) ([]Patch, bool) {
 		same = false
 	}
 	if !same {
-		buff := Render(view2)
+		buff := element.Render(view2)
 		patchElement := view2.Provides
 
 		patch := &Patch{Element: patchElement, Payload: buff.String()}
@@ -116,7 +111,7 @@ func testChildrenEquality(view1 *element.View, view2 *element.View) ([]Patch, bo
 
 		modelEqual := reflect.DeepEqual(v1.Model, v2.Model)
 		if !modelEqual {
-			buff := Render(v2)
+			buff := element.Render(v2)
 			patchElement := v2.InjectInto
 
 			patch := &Patch{Element: patchElement, Payload: buff.String()}
@@ -181,7 +176,7 @@ func testChildrenEquality(view1 *element.View, view2 *element.View) ([]Patch, bo
 // 	} else {
 // 		// fmt.Printf("Children not same: %v\n", children1 == children2)
 
-// 		//Children are not the same - find out the differences and render them to patch
+// 		//Children are not the same - find out the differences and element.Render them to patch
 // 		differences := list.New()
 // 		for i := 0; i < capacity; i++ {
 // 			var view1 *element.View
@@ -246,7 +241,7 @@ func testChildrenEquality(view1 *element.View, view2 *element.View) ([]Patch, bo
 // 		}
 // 		for e := differences.Front(); e != nil; e = e.Next() {
 // 			view := e.Value.(*element.View)
-// 			buff := Render(view)
+// 			buff := element.Render(view)
 // 			patchElement := view.InjectInto
 // 			if view.Return != "" {
 // 				patchElement = view.Provides
@@ -256,7 +251,7 @@ func testChildrenEquality(view1 *element.View, view2 *element.View) ([]Patch, bo
 // 		}
 
 // 	}
-// 	// buffer := view1.Render()
+// 	// buffer := view1.element.Render()
 // 	// patch := &Patch{Element: "html", Payload: buffer.String()}
 // 	// patches[0] = *patch
 // 	// fmt.Printf("\nPatches size: %+v\n", len(patches))

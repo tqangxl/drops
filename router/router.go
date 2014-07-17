@@ -80,13 +80,13 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/mkasner/drops/element"
+	"github.com/mkasner/drops/protocol"
 )
 
 // Handle is a function that can be registered to a route to handle HTTP
 // requests. Like http.HandlerFunc, but has a third parameter for the values of
 // wildcards (variables).
-type Handle func(http.ResponseWriter, *http.Request, Params) *element.DOM
+type Handle func(http.ResponseWriter, *http.Request, Params) *protocol.DropsResponse
 
 // type HandleHttp func(http.ResponseWriter, *http.Request, Params)
 
@@ -191,7 +191,7 @@ func (r *Router) Handle(method, path string, handle Handle) {
 // request handle.
 func (r *Router) HandlerFunc(method, path string, handler http.HandlerFunc) {
 	r.Handle(method, path,
-		func(w http.ResponseWriter, req *http.Request, _ Params) *element.DOM {
+		func(w http.ResponseWriter, req *http.Request, _ Params) *protocol.DropsResponse {
 			handler(w, req)
 			return nil
 		},
@@ -215,7 +215,7 @@ func (r *Router) ServeFiles(path string, root http.FileSystem) {
 
 	fileServer := http.FileServer(root)
 
-	r.Handle("GET", path, func(w http.ResponseWriter, req *http.Request, ps Params) *element.DOM {
+	r.Handle("GET", path, func(w http.ResponseWriter, req *http.Request, ps Params) *protocol.DropsResponse {
 		req.URL.Path = ps.ByName("filepath").(string)
 		fileServer.ServeHTTP(w, req)
 		return nil

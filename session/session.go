@@ -80,12 +80,12 @@ func GetSessionData(id string) (interface{}, error) {
 	return nil, errors.New("Session does not exist")
 }
 
-func SetSessionData(id string, dom *element.DOM) error {
+func SetSessionData(id string, data interface{}) error {
 	mutex.Lock()
 	defer mutex.Unlock()
 	// fmt.Printf("Setting activeDOM: %+v", dom)
 	if _, ok := sessionStore[id]; ok {
-		sessionStore[id].ActiveDOM = dom
+		sessionStore[id].Data = data
 		return nil
 	}
 

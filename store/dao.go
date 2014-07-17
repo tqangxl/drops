@@ -1,4 +1,4 @@
-package drops
+package store
 
 type DAO interface {
 	SaveModel(data map[string]interface{})

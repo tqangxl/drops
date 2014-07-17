@@ -1,7 +1,7 @@
 //Testing of component creation
 // If i want live reload i can use chromix
 //chromix with "file:///.*/component/.*.html" reload
-package drops
+package element
 
 import (
 	"fmt"

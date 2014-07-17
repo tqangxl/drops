@@ -3,10 +3,10 @@
 //a way to include those html files into project that imports drops library
 //For now I will be using this method: const string as default
 //Later, I'll implement some kind of overriding
-package drops
+package template
 
 import (
-	"text/template"
+	tpl "text/template"
 )
 
 const newTplString = `<h1>{{.MAP.Title}} NEW</h1>
@@ -58,31 +58,31 @@ const inputTextTplString = `
 <label>{{.MAP.Label}}<input type="text" name="{{.MAP.Name}}" value="{{if .MAP.Value}}{{.MAP.Value}}{{end}}"/></label>
 `
 
-var newTpl, editTpl, viewTpl, selectTpl *template.Template
+var newTpl, editTpl, viewTpl, selectTpl *tpl.Template
 
 //Template registry
-var Templates map[string]*template.Template
+var Templates map[string]*tpl.Template
 
 //Load templates
 func init() {
 	// Templates = &tst.Trie{}
-	var templ *template.Template
-	Templates = make(map[string]*template.Template)
-	newTpl = template.Must(template.New("new.tpl").Parse(newTplString))
+	var templ *tpl.Template
+	Templates = make(map[string]*tpl.Template)
+	newTpl = tpl.Must(tpl.New("new.tpl").Parse(newTplString))
 	Templates[newTpl.Name()] = newTpl
-	editTpl = template.Must(template.New("edit.tpl").Parse(editTplString))
+	editTpl = tpl.Must(tpl.New("edit.tpl").Parse(editTplString))
 	Templates[editTpl.Name()] = editTpl
-	viewTpl = template.Must(template.New("view.tpl").Parse(viewTplString))
+	viewTpl = tpl.Must(tpl.New("view.tpl").Parse(viewTplString))
 	Templates[viewTpl.Name()] = viewTpl
-	templ = template.Must(template.New("select.tpl").Parse(selectTplString))
+	templ = tpl.Must(tpl.New("select.tpl").Parse(selectTplString))
 	Templates[templ.Name()] = templ
-	templ = template.Must(template.New("inputText.tpl").Parse(inputTextTplString))
+	templ = tpl.Must(tpl.New("inputText.tpl").Parse(inputTextTplString))
 	Templates[templ.Name()] = templ
-	templ = template.Must(template.New("fieldset.tpl").Parse("<fieldset>{{.MAP.Content}}</fieldset>"))
+	templ = tpl.Must(tpl.New("fieldset.tpl").Parse("<fieldset>{{.MAP.Content}}</fieldset>"))
 	Templates[templ.Name()] = templ
-	templ = template.Must(template.New("message.tpl").Parse(`<li class="{{.TYPE.Type}}">{{.TYPE.Text}}</li>`))
+	templ = tpl.Must(tpl.New("message.tpl").Parse(`<li class="{{.TYPE.Type}}">{{.TYPE.Text}}</li>`))
 	Templates[templ.Name()] = templ
-	templ = template.Must(template.New("messagePanel.tpl").Parse(`<ul id="message" class="panel no-bullet">{{.MAP.Content}}</ul>`))
+	templ = tpl.Must(tpl.New("messagePanel.tpl").Parse(`<ul class="panel no-bullet">{{.MAP.Content}}</ul>`))
 	Templates[templ.Name()] = templ
 
 }

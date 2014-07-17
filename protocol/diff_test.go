@@ -1,4 +1,4 @@
-package drops
+package protocol
 
 import (
 	"fmt"

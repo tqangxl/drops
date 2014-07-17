@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/mkasner/drops/element"
+	"github.com/mkasner/drops/protocol"
 	"github.com/mkasner/drops/router"
 	"github.com/mkasner/drops/session"
 )
@@ -59,20 +60,11 @@ func Serve(port string) {
 	log.Fatal(http.ListenAndServe(":"+port, rtr))
 }
 
-func ResourceHandler(w http.ResponseWriter, r *http.Request, dom *element.DOM) *element.DOM {
+func ResourceHandler(w http.ResponseWriter, r *http.Request, dropsResponse *protocol.DropsResponse) *protocol.DropsResponse {
 	// log.Printf("Resource handler: %s - %s\n", r.Method, r.URL.Path)
 	var response string
 
-	// handle, paramsFromRequest, _ := rtr.Lookup(r.Method, r.URL.Path)
-	// var dom *element.DOM
-	// if handle != nil {
-	// 	log.Printf("Routing success: %v\n", paramsFromRequest)
-	// 	dom = handle(nil, nil, paramsFromRequest)
-	// } else {
-	// 	log.Println("Routing failure, no handler")
-	// }
-	// if drops.ActiveDOM == nil {
-	if w != nil && dom != nil {
+	if w != nil && dropsResponse.Dom != nil {
 		var sessionId string
 		sessionCookie, err := r.Cookie("session")
 		// fmt.Printf("sessionCookie: %+v\n", pretty.Formatter(sessionCookie))
@@ -92,11 +84,11 @@ func ResourceHandler(w http.ResponseWriter, r *http.Request, dom *element.DOM) *
 			// sessionCookie.Value = sessionId
 		}
 		// fmt.Printf("sessionId: %s\n", sessionId)
-		session.SetSessionActiveDOM(sessionId, dom)
+		session.SetSessionActiveDOM(sessionId, dropsResponse.Dom)
 		// fmt.Printf("\ndom set as active: %+v\n", pretty.Formatter(dom.Id))
 
 		// ActiveDOM = dom
-		buffer := Render(&dom.View)
+		buffer := element.Render(&dropsResponse.Dom.View)
 		response = buffer.String()
 		// cookie := &http.Cookie{Name: "session", Value: sessionId}
 		// http.Set
@@ -106,7 +98,7 @@ func ResourceHandler(w http.ResponseWriter, r *http.Request, dom *element.DOM) *
 
 		return nil
 	}
-	return dom
+	return dropsResponse
 }
 
 //Used for static file serving
