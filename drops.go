@@ -75,6 +75,7 @@ func ResourceHandler(w http.ResponseWriter, r *http.Request, dom *element.DOM) *
 	if w != nil && dom != nil {
 		var sessionId string
 		sessionCookie, err := r.Cookie("session")
+		// fmt.Printf("sessionCookie: %+v\n", pretty.Formatter(sessionCookie))
 		if err != nil {
 			// fmt.Printf("Error fetching cookie %v\n", err)
 			//No cookie found
@@ -87,10 +88,13 @@ func ResourceHandler(w http.ResponseWriter, r *http.Request, dom *element.DOM) *
 			if !session.SessionExist(sessionId) {
 				sessionId = session.CreateSession(sessionId)
 			}
-			sessionCookie.Value = sessionId
+			sessionCookie = &http.Cookie{Name: "session", Value: sessionId, Path: "/"}
+			// sessionCookie.Value = sessionId
 		}
 		// fmt.Printf("sessionId: %s\n", sessionId)
 		session.SetSessionActiveDOM(sessionId, dom)
+		// fmt.Printf("\ndom set as active: %+v\n", pretty.Formatter(dom.Id))
+
 		// ActiveDOM = dom
 		buffer := Render(&dom.View)
 		response = buffer.String()

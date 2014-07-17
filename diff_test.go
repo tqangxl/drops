@@ -69,9 +69,9 @@ func TestDiffSame(t *testing.T) {
 	loadTemplates()
 	fmt.Println("TestDiffSame...")
 	dom1 := &element.DOM{View: element.View{Children: make([]*element.View, 0), Template: "base.html", Provides: "html", Model: &element.Model{MAP: make(map[string]interface{})}}, Id: "1"}
-	dom1.IdTree = &element.ViewTrie{}
-	dom1.IdTree.Put(dom1.View.Provides, &dom1.View)
-	dom2 := copyDom(*dom1)
+	dom1.IdMap = make(map[string]*element.View)
+	dom1.IdMap[dom1.View.Provides] = &dom1.View
+	dom2 := CopyDom(*dom1)
 	patches := Diff(&dom1.View, &dom2.View)
 	if len(patches) != 0 {
 		t.Error("Patches generated for same DOM")
@@ -85,9 +85,9 @@ func TestDiffSimple(t *testing.T) {
 	loadTemplates()
 	fmt.Println("TestDiffSimple...")
 	dom1 := &element.DOM{View: element.View{Children: make([]*element.View, 0), Template: "Base", Provides: "html", Model: &element.Model{MAP: make(map[string]interface{})}}, Id: "1"}
-	dom1.IdTree = &element.ViewTrie{}
-	dom1.IdTree.Put(dom1.View.Provides, &dom1.View)
-	dom2 := copyDom(*dom1)
+	dom1.IdMap = make(map[string]*element.View)
+	dom1.IdMap[dom1.View.Provides] = &dom1.View
+	dom2 := CopyDom(*dom1)
 	dom2.Id = "2"
 	dom2.View = element.View{Children: make([]*element.View, 0), Template: "Body", Provides: "html", Model: &element.Model{MAP: make(map[string]interface{})}}
 	patches := Diff(&dom1.View, &dom2.View)
@@ -103,8 +103,8 @@ func TestDiffThreeLevel(t *testing.T) {
 	loadTemplates()
 	fmt.Println("TestDiffThreeLevel...")
 	dom1 := &element.DOM{View: element.View{Children: make([]*element.View, 0), Template: "base.html", Provides: "html", Model: &element.Model{MAP: make(map[string]interface{})}}, Id: "1"}
-	dom1.IdTree = &element.ViewTrie{}
-	dom1.IdTree.Put(dom1.View.Provides, &dom1.View)
+	dom1.IdMap = make(map[string]*element.View)
+	dom1.IdMap[dom1.View.Provides] = &dom1.View
 	head := &element.Head{View: element.View{Template: "head.html", Provides: "head", Return: "Head", InjectInto: "html", Model: &element.Model{MAP: make(map[string]interface{})}}}
 	body := &element.Body{View: element.View{Template: "body.html", Provides: "body", Return: "Body", InjectInto: "html",
 		Model: &element.Model{MAP: map[string]interface{}{
@@ -112,7 +112,7 @@ func TestDiffThreeLevel(t *testing.T) {
 		}}}}
 	dom1 = Add(dom1, &head.View)
 	dom1 = Add(dom1, &body.View)
-	dom2 := copyDom(*dom1)
+	dom2 := CopyDom(*dom1)
 	dom2.Id = "2"
 	dom2.View = element.View{Children: make([]*element.View, 0), Template: "base.html", Provides: "html", Model: &element.Model{MAP: make(map[string]interface{})}}
 	body2 := &element.Body{View: element.View{Template: "body.html", Provides: "body", Return: "Body", InjectInto: "html",
@@ -143,8 +143,8 @@ func loadTemplates() {
 func TestDiff(t *testing.T) {
 	loadTemplates()
 	dom1 := &element.DOM{View: element.View{Children: make([]*element.View, 0), Template: "base.html", Provides: "html", Model: &element.Model{MAP: make(map[string]interface{})}}, Id: "1"}
-	dom1.IdTree = &element.ViewTrie{}
-	dom1.IdTree.Put(dom1.View.Provides, &dom1.View)
+	dom1.IdMap = make(map[string]*element.View)
+	dom1.IdMap[dom1.View.Provides] = &dom1.View
 	head := &element.Head{View: element.View{Template: "head.html", Provides: "head", Return: "Head", InjectInto: "html", Model: &element.Model{MAP: make(map[string]interface{})}}}
 	body := &element.Body{View: element.View{Template: "body.html", Provides: "body", Return: "Body", InjectInto: "html",
 		Model: &element.Model{MAP: make(map[string]interface{})}}}
@@ -169,7 +169,7 @@ func TestDiff(t *testing.T) {
 	}}}}
 	dom1 = Add(dom1, depl.View)
 
-	dom2 := copyDom(*dom1)
+	dom2 := CopyDom(*dom1)
 	if dom1.Id == dom2.Id {
 		t.Errorf("Id not changed: %s == %s\n", dom1.Id, dom2.Id)
 		t.Fail()
@@ -188,11 +188,13 @@ func TestDiff(t *testing.T) {
 		"ColumnNames": []string{"Name", "GitName", "Origin"},
 		"RowValues":   rowValues2,
 	}}}}
+	fmt.Printf("proj %+v\n", proj.Model)
 	// buf := Render(header.View)
-	fmt.Printf("Header before %+v\n", len(header.View.Children))
-	dom2 = Add(dom2, proj.View)
+	equals(t, len(header.View.Children), len(header.View.Children))
+	dom2 = Replace(dom2, proj.View)
+	PrintDOM(dom2, "2")
+	// fmt.Printf("dom2 %+v\n", dom2)
 	// buf = Render(header.View)
-	fmt.Printf("Header after %+v\n", len(header.View.Children))
 	patches := Diff(&dom1.View, &dom2.View)
 	// message, err := json.Marshal(patches)
 	// if err != nil {
@@ -200,10 +202,7 @@ func TestDiff(t *testing.T) {
 	// }
 	// fmt.Printf("result %+v\n", string(message))
 	expected := 1
-	if len(patches) != expected {
-		t.Errorf("Patches not generated: expected: %d  actual: %d", expected, len(patches))
-		// PrintDOM(dom1, dom1.Id)
-		// PrintDOM(dom2, dom2.Id)
-		t.Fail()
-	}
+	// fmt.Printf("Patches: %+v\n", patches)
+	equals(t, expected, len(patches))
+
 }

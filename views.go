@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/kr/pretty"
 	"github.com/mkasner/drops/component"
 	"github.com/mkasner/drops/element"
 )
@@ -401,11 +402,11 @@ func Edit(value interface{}, rules map[string]string, injectInto string, title s
 func PrintDOM(dom *element.DOM, tag string) {
 	var buffer bytes.Buffer
 	fmt.Fprintf(&buffer, "DOM: %+v\n", dom.Id)
-	fmt.Println(&buffer, "View: %v\n")
+	fmt.Fprintln(&buffer, "View:")
 	PrintView(&buffer, &dom.View)
 
 	fmt.Fprintln(&buffer, "\n")
-	fmt.Fprintln(&buffer, "IdTree: %v\n")
+	fmt.Fprintln(&buffer, "IdTree:")
 	PrintTree(&buffer, dom.IdMap)
 	filename := "/tmp/dom" + tag + ".txt"
 	err := ioutil.WriteFile(filename, buffer.Bytes(), 0644)
@@ -415,7 +416,8 @@ func PrintDOM(dom *element.DOM, tag string) {
 }
 
 func PrintView(buffer *bytes.Buffer, view *element.View) {
-	fmt.Fprintf(buffer, "View: %+v\n", view)
+	fmt.Fprintf(buffer, "View: %+v\n", pretty.Formatter(view))
+	fmt.Fprintf(buffer, "Model: %+v\n", *view.Model)
 	if view.Children != nil {
 		// fmt.Println("rendering children...")
 		for _, view := range view.Children {
@@ -452,24 +454,37 @@ func CopyDom(dom element.DOM) *element.DOM {
 }
 
 func copyView(v element.View, idMap map[string]*element.View) element.View {
+	if v.Children != nil {
+		newChildren := make([]*element.View, len(v.Children))
+		// copy(newChildren, v.Children)
+		// fmt.Printf("New children length: %v  Old children length: %v\n", len(newChildren), len(v.Children))
 
-	var newChildren []*element.View
-	copy(newChildren, v.Children)
-	if newChildren != nil {
 		// fmt.Println("rendering children...")
 		for i, view := range v.Children {
 			// fmt.Println("rendering child...")
 
 			// fmt.Printf("View: %+v\n", view)
 			childView := copyView(*view, idMap)
+			childView.Model = copyModel(*view.Model)
 			newChildren[i] = &childView
+			if childView.Provides != "" {
+				// fmt.Printf("Added to new idMap: %+v\n", v.Provides)
+				idMap[childView.Provides] = &childView
+			}
+			v.Children = newChildren
 
 		}
 	} else {
-		v.Children = newChildren
+		v.Children = nil
+		if v.Provides != "" {
+			// fmt.Printf("Added to new idMap: %+v\n", v.Provides)
+			idMap[v.Provides] = &v
+		}
 	}
-	if v.Provides != "" {
-		idMap[v.Provides] = &v
-	}
+
 	return v
+}
+
+func copyModel(m element.Model) *element.Model {
+	return &m
 }

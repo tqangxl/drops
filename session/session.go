@@ -2,6 +2,7 @@
 package session
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -13,6 +14,7 @@ import (
 
 type session struct {
 	ActiveDOM *element.DOM
+	Data      interface{}
 }
 
 var mutex *sync.RWMutex
@@ -67,6 +69,29 @@ func GetSessionActiveDOM(id string) *element.DOM {
 	return nil
 }
 
+func GetSessionData(id string) (interface{}, error) {
+	mutex.RLock()
+	defer mutex.RUnlock()
+	// fmt.Printf("Getting activeDOM for session: %+v", id)
+	if session, ok := sessionStore[id]; ok {
+		// fmt.Printf("Getting activeDOM: %+v", session.ActiveDOM)
+		return session.Data, nil
+	}
+	return nil, errors.New("Session does not exist")
+}
+
+func SetSessionData(id string, dom *element.DOM) error {
+	mutex.Lock()
+	defer mutex.Unlock()
+	// fmt.Printf("Setting activeDOM: %+v", dom)
+	if _, ok := sessionStore[id]; ok {
+		sessionStore[id].ActiveDOM = dom
+		return nil
+	}
+
+	return errors.New("Session does not exist")
+}
+
 //Checks if session exist
 func SessionExist(id string) bool {
 	mutex.RLock()
@@ -80,6 +105,13 @@ func SessionExist(id string) bool {
 //Cleans session store based on expired flag
 func CleanSessionStore() {
 
+}
+
+//Deletes session
+func DeleteSession(sessionId string) {
+	mutex.Lock()
+	delete(sessionStore, sessionId)
+	mutex.Unlock()
 }
 
 //extracts session id from provided sessionId or http.Request

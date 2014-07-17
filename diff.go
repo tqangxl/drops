@@ -2,7 +2,7 @@
 package drops
 
 import (
-	"fmt"
+	"reflect"
 
 	"github.com/mkasner/drops/element"
 )
@@ -21,20 +21,24 @@ func Diff(view1 *element.View, view2 *element.View) []Patch {
 	cont := true
 	patches := make([]Patch, 0)
 	var newPatches []Patch
-	fmt.Printf("Testing views: %s vs %s\n", view1.Template, view2.Template)
-	fmt.Println("Testing length...")
+	// fmt.Printf("Testing views: %s vs %s\n", view1.Template, view2.Template)
+	// fmt.Println("Testing length...")
 	newPatches, cont = testLength(view1, view2)
 	patches = append(patches, newPatches...)
 	if cont {
-		fmt.Println("Testing Equality...")
+		// fmt.Println("Testing Equality...")
 
 		newPatches, cont = testEquality(view1, view2)
 		patches = append(patches, newPatches...)
+		// fmt.Printf("Patches after Equality %+v  Continue: %t\n", len(newPatches), cont)
+		// fmt.Printf("New patches: %+v\n", newPatches)
 	}
 	if cont {
-		fmt.Println("Testing ChildrenEquality...")
+		// fmt.Println("Testing ChildrenEquality...")
 		newPatches, cont = testChildrenEquality(view1, view2)
 		patches = append(patches, newPatches...)
+		// fmt.Printf("Patches after ChildrenEquality %+v Continue: %t\n", len(newPatches), cont)
+		// fmt.Printf("New patches: %+v\n", newPatches)
 	}
 
 	return patches
@@ -54,7 +58,7 @@ func testLength(view1 *element.View, view2 *element.View) ([]Patch, bool) {
 		cont = false
 	}
 	if len(patches) > 0 {
-		fmt.Println("\nGenerated patches on testLength")
+		// fmt.Println("\nGenerated patches on testLength")
 	}
 	return patches, cont
 }
@@ -67,15 +71,14 @@ func testEquality(view1 *element.View, view2 *element.View) ([]Patch, bool) {
 	if view1 != nil && view2 != nil {
 		same = true
 	}
-	if same && view1.Model != view2.Model {
-		same = false
-	}
+	same = reflect.DeepEqual(view1.Model, view2.Model)
+
 	if same && view1.Template != view2.Template {
 		same = false
 	}
 	if !same {
 		buff := Render(view2)
-		patchElement := view2.InjectInto
+		patchElement := view2.Provides
 
 		patch := &Patch{Element: patchElement, Payload: buff.String()}
 		patches = append(patches, *patch)
@@ -86,7 +89,7 @@ func testEquality(view1 *element.View, view2 *element.View) ([]Patch, bool) {
 		cont = false
 	}
 	if len(patches) > 0 {
-		fmt.Println("\nGenerated patches on testEquality")
+		// fmt.Println("\nGenerated patches on testEquality")
 	}
 	return patches, cont
 }
@@ -108,7 +111,11 @@ func testChildrenEquality(view1 *element.View, view2 *element.View) ([]Patch, bo
 		if i < len(view2.Children) {
 			v2 = view2.Children[i]
 		}
-		if v1 != v2 {
+		// fmt.Printf("Model 1 %+v \n", v1.Model)
+		// fmt.Printf("Model 2 %+v \n", v2.Model)
+
+		modelEqual := reflect.DeepEqual(v1.Model, v2.Model)
+		if !modelEqual {
 			buff := Render(v2)
 			patchElement := v2.InjectInto
 

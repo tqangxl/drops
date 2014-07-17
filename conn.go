@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -53,6 +52,7 @@ func (c *connection) readPump() {
 	defer func() {
 		h.unregister <- c
 		c.ws.Close()
+		// session.DeleteSession(c.sessionId)
 	}()
 	c.ws.SetReadLimit(maxMessageSize)
 	c.ws.SetReadDeadline(time.Now().Add(pongWait))
@@ -94,24 +94,10 @@ func (c *connection) readPump() {
 			if err != nil {
 				log.Printf("Error handling: %v\n", err)
 			}
-			fmt.Printf("Patches generated: %+v\n", string(message))
+			// fmt.Printf("Patches generated: %+v\n", string(message))
 			c.send <- message
 		case "EVENT":
 			fmt.Printf("Event received: %+v\n", m.Data)
-			// example event. Using this before I Implement eventDispatcher
-
-			if val, ok := m.Data["className"]; ok {
-				if strings.Contains(val.(string), "deploy-btn") {
-					//Start deployment
-					patch := &Patch{Element: "#alert", Payload: "Started deployment " + m.Data["id"].(string)}
-					message, err := json.Marshal(patch)
-					if err != nil {
-						log.Println("Error marshaling patch")
-					}
-					h.broadcast <- message
-
-				}
-			}
 
 			handle, paramsFromRequest, _ := rtr.Lookup(m.Type, m.Data["route"].(string))
 			if handle != nil {
@@ -122,15 +108,15 @@ func (c *connection) readPump() {
 				if err != nil {
 					log.Printf("Error handling: %v\n", err)
 				}
-				fmt.Printf("Patches generated: %+v\n", string(message))
+				// fmt.Printf("Patches generated: %+v\n", string(message))
 				c.send <- message
 			} else {
 				if val, ok := m.Data["action"]; ok {
-					if handler, ok := eventDispatcher[val.(string)]; ok {
-						message := handler.Handle(m.Data)
-						c.send <- message
-						continue
-					}
+					// if handler, ok := eventDispatcher[val.(string)]; ok {
+					// 	message := handler.Handle(m.Data)
+					// 	c.send <- message
+					// 	continue
+					// }
 					switch val {
 					case "new":
 
@@ -182,22 +168,22 @@ func (c *connection) readPump() {
 func (c *connection) handleExecute(handle router.Handle, paramsFromRequest router.Params) ([]byte, error) {
 	var dom *element.DOM
 	activeDOM := session.GetSessionActiveDOM(c.sessionId)
-	// fmt.Printf("Getting activeDOM: %+v", activeDOM)
+	// fmt.Printf("\nGetting activeDOM on websocket connection: %+v\n", pretty.Formatter(activeDOM))
 	if handle != nil {
 		sessionParam := router.Param{Key: "session", Value: c.sessionId}
 
 		paramsFromRequest = append(paramsFromRequest, sessionParam)
-		fmt.Printf("Routing success: %v\n", paramsFromRequest)
+		// fmt.Printf("Routing success: %v\n", paramsFromRequest)
 
 		dom = handle(nil, nil, paramsFromRequest)
 		// PrintDOM(ActiveDOM, "1")
 
-		fmt.Printf("ActiveDOM: %+v\n", activeDOM)
-		fmt.Printf("New DOM: %+v\n", dom)
+		// fmt.Printf("ActiveDOM: %+v\n", activeDOM)
+		// fmt.Printf("New DOM: %+v\n", dom)
 		// fmt.Printf("Active dom is the same to new DOM: %v\n", *ActiveDOM == *dom)
 		// PrintDOM(dom, "2")
 	} else {
-		fmt.Println("Routing failure, no handler")
+		log.Println("Routing failure, no handler")
 
 		dom = activeDOM
 	}
@@ -206,7 +192,7 @@ func (c *connection) handleExecute(handle router.Handle, paramsFromRequest route
 	var patches []Patch
 	if activeDOM != nil {
 		patches = Diff(&activeDOM.View, &dom.View)
-		fmt.Printf("Patches: %+v\n", patches)
+		// fmt.Printf("Patches: %+v\n", patches)
 
 		session.SetSessionActiveDOM(c.sessionId, dom)
 	} else {
@@ -216,7 +202,7 @@ func (c *connection) handleExecute(handle router.Handle, paramsFromRequest route
 	if err != nil {
 		log.Println("Error marshaling patch")
 	}
-	fmt.Printf("Patches generated: %+v\n", string(message))
+	// fmt.Printf("Patches generated: %+v\n", string(message))
 	return message, nil
 
 }
@@ -269,15 +255,15 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 	c := &connection{send: make(chan []byte, 256), ws: ws}
 	cookie, err := r.Cookie("session")
 	if err != nil {
-		fmt.Printf("Cookie doesn't exist: %v\n", err)
+		// fmt.Printf("Cookie doesn't exist: %v\n", err)
 	} else {
-		fmt.Printf("\nQuerying session for id: %s\n", cookie.Value)
+		// fmt.Printf("\nQuerying session for id: %s\n", cookie.Value)
 		if session.SessionExist(cookie.Value) {
-			fmt.Printf("Session set on websocket connection: %s\n", cookie.Value)
+			// fmt.Printf("Session set on websocket connection: %s\n", cookie.Value)
 			c.sessionId = cookie.Value
 		} else {
-			fmt.Printf("Session doesn't exist: %s\n", cookie.Value)
-			fmt.Printf("Session store: %+v\n", session.SessionStore())
+			// fmt.Printf("Session doesn't exist: %s\n", cookie.Value)
+			// fmt.Printf("Session store: %+v\n", session.SessionStore())
 		}
 	}
 	h.register <- c

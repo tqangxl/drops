@@ -85,6 +85,4 @@ func init() {
 	templ = template.Must(template.New("messagePanel.tpl").Parse(`<ul id="message" class="panel no-bullet">{{.MAP.Content}}</ul>`))
 	Templates[templ.Name()] = templ
 
-	NewEventDispatcher()
-
 }
