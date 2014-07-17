@@ -25,7 +25,7 @@ func Render(v *element.View) bytes.Buffer {
 	var buffer bytes.Buffer
 	// Iterate through list and and print its contents.
 	// l := list.New()
-	fmt.Printf("Children: %+v\n", v.Children)
+	// fmt.Printf("Children: %+v\n", v.Children)
 	if v.Children != nil {
 		// fmt.Println("rendering children...")
 		for _, view := range v.Children {
@@ -52,7 +52,7 @@ func Render(v *element.View) bytes.Buffer {
 			// fmt.Printf("Buffer: %+v\n", buffer)
 		}
 	} else {
-		fmt.Printf("No children: %+v\n", v.Template)
+		// fmt.Printf("No children: %+v\n", v.Template)
 	}
 	// fmt.Printf("Template: %s\n", v.Template)
 	if strings.HasSuffix(v.Template, ".html") || strings.HasSuffix(v.Template, ".tpl") {

@@ -41,6 +41,7 @@ func CreateSession(id string) string {
 	session := &session{}
 	mutex.Lock()
 	sessionStore[id] = session
+	fmt.Printf("Session size: %+v\n", len(sessionStore))
 	mutex.Unlock()
 	return id
 }
