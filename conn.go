@@ -167,7 +167,7 @@ func (c *connection) readPump() {
 
 //Handles event and creates DOM patch
 func (c *connection) handleExecute(handle router.Handle, paramsFromRequest router.Params) ([]byte, error) {
-	var dropsResponse *protocol.DropsResponse
+	dropsResponse := &protocol.DropsResponse{}
 	activeDOM := session.GetSessionActiveDOM(c.sessionId)
 	// fmt.Printf("\nGetting activeDOM on websocket connection: %+v\n", pretty.Formatter(activeDOM))
 	if handle != nil {
