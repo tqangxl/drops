@@ -15,6 +15,7 @@ import (
 type session struct {
 	ActiveDOM *element.DOM
 	Data      interface{}
+	Messages  element.Messages
 }
 
 var mutex *sync.RWMutex
@@ -90,6 +91,26 @@ func SetSessionData(id string, data interface{}) error {
 	}
 
 	return errors.New("Session does not exist")
+}
+
+func GetSessionMessages(id string) element.Messages {
+	mutex.RLock()
+	defer mutex.RUnlock()
+	// fmt.Printf("Getting activeDOM for session: %+v", id)
+	if session, ok := sessionStore[id]; ok {
+		// fmt.Printf("Getting activeDOM: %+v", session.ActiveDOM)
+		return session.Messages
+	}
+	return nil
+}
+
+func SetSessionMessages(id string, messages element.Messages) {
+	mutex.Lock()
+	// fmt.Printf("Setting activeDOM: %+v", dom)
+	if _, ok := sessionStore[id]; ok {
+		sessionStore[id].Messages = messages
+	}
+	mutex.Unlock()
 }
 
 //Checks if session exist

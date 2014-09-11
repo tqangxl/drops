@@ -83,6 +83,16 @@ import (
 	"github.com/mkasner/drops/protocol"
 )
 
+var rtr *Router
+
+func GetRouter() *Router {
+	return rtr
+}
+
+func InitRouter() {
+	rtr = New()
+}
+
 // Handle is a function that can be registered to a route to handle HTTP
 // requests. Like http.HandlerFunc, but has a third parameter for the values of
 // wildcards (variables).
@@ -182,7 +192,7 @@ func (r *Router) Handle(method, path string, handle Handle) {
 		r.trees[method] = root
 	}
 
-	log.Printf("Adding route: %s\n", path)
+	log.Printf("Adding route: %s %s\n", method, path)
 
 	root.addRoute(path, handle)
 }

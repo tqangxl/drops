@@ -43,7 +43,7 @@ func GenerateMessage(response *DropsResponse) []byte {
 func generatePatches(response *DropsResponse) []Patch {
 	var patches []Patch
 
-	if response.ActiveDom != nil {
+	if response.ActiveDom != nil && response.Dom != nil {
 		patches = Diff(&response.ActiveDom.View, &response.Dom.View)
 		// fmt.Printf("Patches: %+v\n", patches)
 

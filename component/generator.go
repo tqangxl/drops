@@ -3,12 +3,26 @@ package component
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 
+	"github.com/kr/pretty"
+	"github.com/mkasner/drops"
 	"github.com/mkasner/drops/element"
+	"github.com/mkasner/drops/event"
+	"github.com/mkasner/drops/message"
+	"github.com/mkasner/drops/protocol"
+	"github.com/mkasner/drops/router"
+	"github.com/mkasner/drops/session"
 	"github.com/mkasner/drops/store"
 )
+
+func InitGenerator() {
+	NewEvents()
+	EditEvents()
+}
 
 //Struct which holds facts for fields that are going to be rendered
 type ComponentRule struct {
@@ -65,7 +79,45 @@ func New(typ reflect.Type, rules map[string]string, injectInto string, title str
 	fmt.Printf("Fields generated %v\n", fields)
 
 	return view
+}
 
+//Injects edit handler event
+func NewEvents() {
+	editEvents := event.Events{
+		{
+			JsEvent: "submit",
+			Origin:  "#form-new",
+			Type:    "EVENT",
+			Route:   "/model/new/",
+			Handler: AddHandler,
+		},
+	}
+	handle, _, _ := router.GetRouter().Lookup("EVENT", "/model/new/")
+	if handle == nil {
+		event.AddEvents(editEvents)
+		drops.RegisterHandlers(editEvents)
+
+	}
+}
+
+func AddHandler(w http.ResponseWriter, r *http.Request, params router.Params) *protocol.DropsResponse {
+	data := params.ByName("data").(map[string]interface{})
+	modelname := data["model"].(string)
+
+	fmt.Printf("%# v", pretty.Formatter(data))
+
+	store.AddModel(modelname, data)
+	sessionId := session.GetSessionId(r, params.ByName("session").(string))
+
+	message.NewMessage(sessionId, modelname+" saved")
+
+	dom := session.GetSessionActiveDOM(sessionId)
+	message.ProcessMessages(sessionId, dom)
+
+	response := &protocol.DropsResponse{}
+	response.Dom = dom
+	response.Route = "/" + strings.ToLower(modelname) + "/"
+	return response
 }
 
 //Executes ignore rule and returns if filed should be ignored
@@ -135,6 +187,7 @@ func ViewModel(value interface{}, rules map[string]string, injectInto string, ti
 	}
 	view := &element.View{Template: chosenTemplate, InjectInto: injectInto, Model: &element.Model{MAP: make(map[string]interface{})}}
 	view.Model.MAP["Title"] = title
+	view.Model.TYPE = value
 	typ := reflect.TypeOf(value).Elem()
 	val := reflect.Indirect(reflect.ValueOf(value))
 
@@ -177,8 +230,8 @@ func ViewModel(value interface{}, rules map[string]string, injectInto string, ti
 }
 
 //Magical method that creates form for editing based on provided value
-func Edit(value interface{}, rules map[string]string, injectInto string, title string) *element.View {
-	view := &element.View{Template: "edit.tpl", InjectInto: injectInto, Model: &element.Model{MAP: make(map[string]interface{})}}
+func Edit(value interface{}, rules map[string]string, injectInto string, provides string, title string) *element.View {
+	view := &element.View{Template: "edit.tpl", InjectInto: injectInto, Provides: provides, Model: &element.Model{MAP: make(map[string]interface{})}}
 	view.MAP["Title"] = title
 	fieldset := NewFieldset()
 
@@ -223,6 +276,48 @@ func Edit(value interface{}, rules map[string]string, injectInto string, title s
 
 	return view
 
+}
+
+//Injects edit handler event
+func EditEvents() {
+	editEvents := event.Events{
+		{
+			JsEvent: "submit",
+			Origin:  "#form-edit",
+			Type:    "EVENT",
+			Route:   "/model/save/",
+			Handler: SaveHandler,
+		},
+	}
+	handle, _, _ := router.GetRouter().Lookup("EVENT", "/model/save/")
+	if handle == nil {
+		event.AddEvents(editEvents)
+		drops.RegisterHandlers(editEvents)
+
+	}
+}
+
+func SaveHandler(w http.ResponseWriter, r *http.Request, params router.Params) *protocol.DropsResponse {
+	data := params.ByName("data").(map[string]interface{})
+	modelname := data["model"].(string)
+	id, err := strconv.ParseInt(data["id"].(string), 0, 64)
+	if err != nil {
+		log.Printf("Error parsing id %v", err)
+	}
+	data["id"] = id
+	fmt.Printf("%# v", pretty.Formatter(data))
+
+	store.SaveModel(modelname, data)
+
+	sessionId := session.GetSessionId(r, params.ByName("session").(string))
+	message.NewMessage(sessionId, modelname+" saved")
+
+	dom := session.GetSessionActiveDOM(sessionId)
+	message.ProcessMessages(sessionId, dom)
+
+	response := &protocol.DropsResponse{}
+	response.Dom = dom
+	return response
 }
 
 // Get returns the value associated with key in the tag string.

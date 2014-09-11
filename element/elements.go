@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/kr/pretty"
+
 	"github.com/mkasner/drops/template"
 )
 
@@ -36,6 +37,15 @@ type View struct {
 	*Model
 	Return string //key which view returns and will be used in model for templating
 	Parent *View
+}
+
+type Messages []*Message
+
+type Message struct {
+	Text     string
+	Type     string //class
+	Expires  int    //counter for how long the messages should be shown
+	Priority int    //Priority of messages
 }
 
 //Renders view recurively

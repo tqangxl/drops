@@ -3,7 +3,7 @@ package store
 type DAO interface {
 	SaveModel(data map[string]interface{})
 	UpdateModel(data map[string]interface{})
-	DeleteModel(id int64)
+	DeleteModel(id string)
 	GetAll() []map[string]interface{}
 }
 

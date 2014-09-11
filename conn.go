@@ -15,7 +15,6 @@ import (
 	"github.com/mkasner/drops/protocol"
 	"github.com/mkasner/drops/router"
 	"github.com/mkasner/drops/session"
-	"github.com/mkasner/drops/store"
 )
 
 const (
@@ -71,82 +70,98 @@ func (c *connection) readPump() {
 		fmt.Printf("Session on connection %+v\n", c.sessionId)
 		// fmt.Printf("Message received: %s\n", string(message))
 		//Check to see if its url change
-		switch m.Type {
-		case "GET":
+		handle, paramsFromRequest, _ := rtr.Lookup(m.Type, m.Data["route"].(string))
+		if handle != nil {
+			newParam := router.Param{Key: "data", Value: m.Data}
 
-			var params router.Params
-			if _, ok := m.Data["params"]; ok { //if params exist
-				paramsMap := m.Data["params"].(map[string]interface{})
-				if paramsMap != nil && len(paramsMap) > 0 {
-					params = make(router.Params, len(paramsMap))
-					i := 0
-					for k, v := range paramsMap {
-						param := &router.Param{k, v}
-						params[i] = *param
-						i++
-					}
-				}
-			}
-			// fmt.Printf("Params: %+v", m.Data["params"])
-			// dom := Route(m.Data["route"].(string)[1:], params)
-
-			handle, paramsFromRequest, _ := rtr.Lookup(m.Type, m.Data["route"].(string))
+			paramsFromRequest = append(paramsFromRequest, newParam)
 			message, err := c.handleExecute(handle, paramsFromRequest)
 			if err != nil {
 				log.Printf("Error handling: %v\n", err)
 			}
 			// fmt.Printf("Patches generated: %+v\n", string(message))
 			c.send <- message
-		case "EVENT":
-			fmt.Printf("Event received: %+v\n", m.Data)
-
-			handle, paramsFromRequest, _ := rtr.Lookup(m.Type, m.Data["route"].(string))
-			if handle != nil {
-				newParam := router.Param{Key: "data", Value: m.Data}
-
-				paramsFromRequest = append(paramsFromRequest, newParam)
-				message, err := c.handleExecute(handle, paramsFromRequest)
-				if err != nil {
-					log.Printf("Error handling: %v\n", err)
-				}
-				// fmt.Printf("Patches generated: %+v\n", string(message))
-				c.send <- message
-			} else {
-				if val, ok := m.Data["action"]; ok {
-					// if handler, ok := eventDispatcher[val.(string)]; ok {
-					// 	message := handler.Handle(m.Data)
-					// 	c.send <- message
-					// 	continue
-					// }
-					switch val {
-					case "new":
-
-						model := m.Data["model"].(map[string]interface{})
-						modelname := m.Data["model-name"].(string)
-						store.AddModel(modelname, model)
-					case "edit":
-						model := m.Data["model"].(map[string]interface{})
-						modelname := m.Data["model-name"].(string)
-						store.SaveModel(modelname, model)
-
-					case "delete":
-						model := m.Data["model"].(map[string]interface{})
-						modelname := m.Data["model-name"].(string)
-						store.DeleteModel(modelname, model)
-						// //Start deployment
-						// patch := &Patch{Element: "#alert", Payload: "Do you want  to undo delete of" + model["id"].(string) + "? Not yet..."}
-						// message, err := json.Marshal(patch)
-						// if err != nil {
-						// 	log.Println("Error marshaling patch")
-						// }
-						c.send <- message
-					}
-				}
-			}
-
-		default:
-			h.broadcast <- message
+		} else {
+			fmt.Printf("Handle not found: %+v\n", m.Data)
 		}
+		// switch m.Type {
+		// case "GET":
+
+		// 	// var params router.Params
+		// 	// if _, ok := m.Data["params"]; ok { //if params exist
+		// 	// 	paramsMap := m.Data["params"].(map[string]interface{})
+		// 	// 	if paramsMap != nil && len(paramsMap) > 0 {
+		// 	// 		params = make(router.Params, len(paramsMap))
+		// 	// 		i := 0
+		// 	// 		for k, v := range paramsMap {
+		// 	// 			param := &router.Param{k, v}
+		// 	// 			params[i] = *param
+		// 	// 			i++
+		// 	// 		}
+		// 	// 	}
+		// 	// }
+		// 	// fmt.Printf("Params: %+v", m.Data["params"])
+		// 	// dom := Route(m.Data["route"].(string)[1:], params)
+
+		// 	handle, paramsFromRequest, _ := rtr.Lookup(m.Type, m.Data["route"].(string))
+		// 	message, err := c.handleExecute(handle, paramsFromRequest)
+		// 	if err != nil {
+		// 		log.Printf("Error handling: %v\n", err)
+		// 	}
+		// 	// fmt.Printf("Patches generated: %+v\n", string(message))
+		// 	c.send <- message
+		// case "EVENT":
+		// 	fmt.Printf("Event received: %+v\n", m.Data)
+
+		// 	handle, paramsFromRequest, _ := rtr.Lookup(m.Type, m.Data["route"].(string))
+		// 	if handle != nil {
+		// 		newParam := router.Param{Key: "data", Value: m.Data}
+
+		// 		paramsFromRequest = append(paramsFromRequest, newParam)
+		// 		message, err := c.handleExecute(handle, paramsFromRequest)
+		// 		if err != nil {
+		// 			log.Printf("Error handling: %v\n", err)
+		// 		}
+		// 		// fmt.Printf("Patches generated: %+v\n", string(message))
+		// 		c.send <- message
+		// 	} else {
+		// 		fmt.Printf("Handle not found: %+v\n", m.Data)
+
+		// 		if val, ok := m.Data["action"]; ok {
+		// 			// if handler, ok := eventDispatcher[val.(string)]; ok {
+		// 			// 	message := handler.Handle(m.Data)
+		// 			// 	c.send <- message
+		// 			// 	continue
+		// 			// }
+		// 			switch val {
+		// 			case "new":
+
+		// 				model := m.Data["model"].(map[string]interface{})
+		// 				modelname := m.Data["model-name"].(string)
+		// 				store.AddModel(modelname, model)
+		// 			case "edit":
+		// 				model := m.Data["model"].(map[string]interface{})
+		// 				modelname := m.Data["model-name"].(string)
+		// 				store.SaveModel(modelname, model)
+
+		// 				// case "delete":
+		// 				// 	model := m.Data["model"].(map[string]interface{})
+		// 				// 	modelname := m.Data["model-name"].(string)
+		// 				// 	store.DeleteModel(modelname, model)
+		// 				// 	// //Start deployment
+		// 				// 	// patch := &Patch{Element: "#alert", Payload: "Do you want  to undo delete of" + model["id"].(string) + "? Not yet..."}
+		// 				// 	// message, err := json.Marshal(patch)
+		// 				// 	// if err != nil {
+		// 				// 	// 	log.Println("Error marshaling patch")
+		// 				// 	// }
+		// 				// 	c.send <- message
+		// 			}
+		// 		}
+		// 	}
+
+		// default:
+		// 	h.broadcast <- message
+		// }
 	}
 	// var message Message
 	// for {

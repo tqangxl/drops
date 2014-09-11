@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"reflect"
-	"strconv"
 )
 
 var stores map[string]*Store
@@ -55,10 +54,11 @@ func SaveModel(model string, data map[string]interface{}) {
 func DeleteModel(model string, data map[string]interface{}) {
 	if store, ok := stores[model]; ok {
 		fmt.Printf("Found store for model %s\n", model)
-		id, err := strconv.ParseInt(data["id"].(string), 0, 64)
-		if err != nil {
-			log.Printf("Error parsing id %v", err)
-		}
+		// id, err := strconv.ParseInt(data["id"].(string), 0, 64)
+		// if err != nil {
+		// 	log.Printf("Error parsing id %v", err)
+		// }
+		id := data["id"].(string)
 		store.dao.DeleteModel(id)
 	} else {
 		log.Printf("Store for model %s not initialized.\n", model)

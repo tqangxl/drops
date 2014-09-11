@@ -10,7 +10,7 @@ import (
 )
 
 const newTplString = `<h1>{{.MAP.Title}} NEW</h1>
-<form id="form-new" data-model="{{.MAP.Title}}">
+<form id="form-new" data-model="{{.MAP.Title}}" data-route="/model/new/">
 	<button type="submit" class="small">Save</button>
 	{{.MAP.Fieldset}}
 	<button type="submit"  class="small">Save</button>
@@ -18,18 +18,19 @@ const newTplString = `<h1>{{.MAP.Title}} NEW</h1>
 
 const editTplString = `<h1>{{.MAP.Title}} EDIT</h1>
 <dl class="sub-nav">
-  <dd><a href="#" data-action="delete" data-id="{{.MAP.Id}}" data-model="{{.MAP.Title}}" class="delete-action">Delete</a></dd>
+  <dd><a href="#" data-action="delete" data-id="{{.MAP.Id}}" data-model="{{.MAP.Title}}"  class="delete-action">Delete</a></dd>
 </dl>
-<form id="form-edit" data-model="{{.MAP.Title}}" data-id="{{.MAP.Id}}">
+<form id="form-edit" data-model="{{.MAP.Title}}" data-id="{{.MAP.Id}}" data-route="/model/save/">
 	<button type="submit" class="small">Save</button>
 {{.MAP.Fieldset}}
 	<button type="submit"  class="small">Save</button>
-</form>`
+</form>
+{{.MAP.Content}}`
 
 const viewTplString = `<h1>{{.MAP.Title}} {{.MAP.Id}}</h1>
 <dl class="sub-nav">
   <dd><a href="#" data-action="edit" data-id="{{.MAP.Id}}" class="action">Edit</a></dd>
-  <dd><a href="#" data-action="delete" data-id="{{.MAP.Id}}" data-model="{{.MAP.Title}}" class="delete-action">Delete</a></dd>
+  <dd><a href="#" data-route="/{{.MAP.Title}}/{{.MAP.Id}}/" class="delete-action">Delete</a></dd>
 </dl>
 	{{range .MAP.Fields}}
 	<div class="row">
@@ -82,7 +83,7 @@ func init() {
 	Templates[templ.Name()] = templ
 	templ = tpl.Must(tpl.New("message.tpl").Parse(`<li class="{{.TYPE.Type}}">{{.TYPE.Text}}</li>`))
 	Templates[templ.Name()] = templ
-	templ = tpl.Must(tpl.New("messagePanel.tpl").Parse(`<ul class="panel no-bullet">{{.MAP.Content}}</ul>`))
+	templ = tpl.Must(tpl.New("messagePanel.tpl").Parse(`<ul id="message" class="panel no-bullet">{{.MAP.Content}}</ul>`))
 	Templates[templ.Name()] = templ
 
 }

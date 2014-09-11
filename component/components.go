@@ -22,18 +22,17 @@ func NewFieldset() *element.View {
 	return view
 }
 
-type Message struct {
-	*element.View
-	Text string
-	Type string
-}
+// type Message struct {
+// 	*element.View
+// 	Text string
+// 	Type string
+// }
 
-//Constructs a new message and place it on screen
-func NewMessage(messageText string, messageType string) *Message {
-	message := &Message{Text: messageText, Type: messageType}
-	message.View = &element.View{Template: "message.tpl", InjectInto: "#message", Model: &element.Model{MAP: make(map[string]interface{}), TYPE: message}}
-	return message
-}
+// //Constructs a new message and place it on screen
+// func NewMessage(message *element.Message) *element.View {
+// 	view := &element.View{Template: "message.tpl", InjectInto: "#message", Model: &element.Model{MAP: make(map[string]interface{}), TYPE: message}}
+// 	return view
+// }
 
 func NewMessagePanel(injectInto string) *element.View {
 	view := &element.View{Template: "messagePanel.tpl", InjectInto: injectInto, Return: "MessagePanel", Provides: "#message", Model: &element.Model{MAP: make(map[string]interface{})}}

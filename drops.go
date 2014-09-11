@@ -8,16 +8,21 @@ import (
 	"net/http"
 
 	"github.com/mkasner/drops/element"
+	"github.com/mkasner/drops/event"
 	"github.com/mkasner/drops/protocol"
 	"github.com/mkasner/drops/router"
 	"github.com/mkasner/drops/session"
 )
 
-var rtr *router.Router
+var (
+	rtr *router.Router
+)
 
 func NewDrops() {
-	rtr = router.New()
+	router.InitRouter()
+	rtr = router.GetRouter()
 	session.NewSessionStore()
+	event.NewEventStore()
 }
 
 // GET is a shortcut for r.Handle("GET", path, handle)
@@ -53,9 +58,26 @@ func HandleFunc(path string, handle http.HandlerFunc) {
 	rtr.HandlerFunc("GET", path, handle)
 }
 
-func Serve(port string) {
-	rtr.ServeFiles("/assets/*filepath", http.Dir("assets"))
+//register handlers from events
+func RegisterHandlers(events event.Events) error {
+	for _, e := range events {
+
+		rtr.Handle(e.Type, e.Route, e.Handler)
+
+	}
+	return nil
+}
+
+func Serve(port, assetsPath, assetsUrl string) {
+	if assetsPath != "" {
+		fmt.Printf("Assets path: %s\n", assetsPath)
+		rtr.ServeFiles("/"+assetsUrl+"/*filepath", http.Dir(assetsPath))
+	} else {
+		rtr.ServeFiles("/assets/*filepath", http.Dir("assets"))
+
+	}
 	rtr.HandlerFunc("GET", "/ws", ServeWs)
+
 	// rtr.HandlerFunc("GET", "/*", ResourceHandler)
 	log.Fatal(http.ListenAndServe(":"+port, rtr))
 }
