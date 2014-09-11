@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"sync"
 
-	"code.google.com/p/go-uuid/uuid"
+	"github.com/satori/go.uuid"
 
 	"github.com/mkasner/drops/element"
 )
@@ -39,7 +39,7 @@ func SessionStore() map[string]*session {
 //Creates session and return session id
 func CreateSession(id string) string {
 	if id == "" {
-		id = uuid.New()
+		id = uuid.NewV4().String()
 	}
 	session := &session{}
 	mutex.Lock()
